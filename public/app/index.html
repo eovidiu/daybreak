@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daybreak</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌅</text></svg>">
+<link rel="stylesheet" href="/app/app.css">
+</head>
+<body>
+<div id="auth" class="hidden">
+  <div class="authCard">
+    <div class="logo">Day<span>break</span></div>
+    <h1 id="authTitle">Welcome back</h1>
+    <form id="authForm">
+      <input id="authName" type="text" placeholder="Your name" autocomplete="name" class="hidden">
+      <input id="authEmail" type="email" placeholder="Email" autocomplete="email" required>
+      <input id="authPassword" type="password" placeholder="Password (8+ characters)"
+             autocomplete="current-password" required minlength="8">
+      <button type="submit" id="authSubmit">Sign in</button>
+      <p class="authError hidden" id="authError"></p>
+    </form>
+    <button class="linkish" id="authToggle">New here? Create an account</button>
+  </div>
+</div>
+
+<div id="planner" class="hidden">
+  <header class="topbar">
+    <div class="logo">Day<span>break</span></div>
+    <div class="dateTitle" id="dateTitle"></div>
+    <div class="topbarRight">
+      <button class="linkish" id="todayBtn">Today</button>
+      <button class="linkish" id="signOut">Sign out</button>
+    </div>
+  </header>
+
+  <nav class="weekStrip" id="weekStrip"></nav>
+
+  <main class="board">
+    <section class="tasksCol">
+      <div class="bucketCard" data-bucket="urgent">
+        <h2>Urgent <small>things with teeth</small></h2>
+        <div class="taskList" id="list-urgent"></div>
+        <form class="addTask"><input placeholder="Add an urgent task…"><button>+</button></form>
+      </div>
+      <div class="bucketCard" data-bucket="progress">
+        <h2>Progress <small>the long game</small></h2>
+        <div class="taskList" id="list-progress"></div>
+        <form class="addTask"><input placeholder="Add a progress task…"><button>+</button></form>
+      </div>
+      <div class="bucketCard" data-bucket="extra">
+        <h2>Extras <small>if there's room</small></h2>
+        <div class="taskList" id="list-extra"></div>
+        <form class="addTask"><input placeholder="Add an extra…"><button>+</button></form>
+      </div>
+
+      <details class="earlier" id="earlierBox">
+        <summary>Earlier <span id="earlierCount"></span></summary>
+        <p class="earlierHint">Unfinished tasks from past days. Pull one into today,
+           or let it rest.</p>
+        <div id="earlierList"></div>
+      </details>
+    </section>
+
+    <section class="timeCol">
+      <div class="timeColHeader">
+        <h2>Timeline</h2>
+        <button id="addEvent">+ Event</button>
+      </div>
+      <div class="timeline" id="timeline"></div>
+    </section>
+  </main>
+</div>
+
+<dialog id="editor">
+  <form method="dialog" id="editorForm">
+    <h3 id="editorTitle">Edit</h3>
+    <input id="editorName" placeholder="Title" required>
+    <div class="editorRow" id="editorTimeRow">
+      <label>Start <input id="editorStart" type="time"></label>
+      <label>Minutes <input id="editorDuration" type="number" min="15" max="720" step="15"></label>
+    </div>
+    <div class="editorRow">
+      <label>Bucket
+        <select id="editorBucket">
+          <option value="urgent">Urgent</option>
+          <option value="progress">Progress</option>
+          <option value="extra">Extras</option>
+        </select>
+      </label>
+    </div>
+    <textarea id="editorNote" placeholder="Private note…" rows="4"></textarea>
+    <div class="editorButtons">
+      <button value="delete" class="danger">Delete</button>
+      <span class="spacer"></span>
+      <button value="cancel" class="linkish">Cancel</button>
+      <button value="save" id="editorSave">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="/app/app.js"></script>
+</body>
+</html>
