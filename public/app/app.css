@@ -119,6 +119,17 @@ button { cursor: pointer; }
   user-select: none; }
 .slotItem.dragging { opacity: .75; cursor: grabbing; z-index: 3;
   box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.slotItem::after { content: ''; position: absolute; right: 8px; top: 50%;
+  transform: translateY(-50%); width: 11px; height: 16px; opacity: .45;
+  background-image: radial-gradient(rgba(255,255,255,.9) 1.2px, transparent 1.4px);
+  background-size: 5px 5px; }
+.slotItem:hover::after { opacity: .8; }
+.slotResize { position: absolute; left: 0; right: 0; bottom: 0; height: 9px;
+  cursor: ns-resize; touch-action: none; }
+.slotResize::before { content: ''; position: absolute; left: 50%; bottom: 3px;
+  transform: translateX(-50%); width: 28px; height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,.55); opacity: 0; }
+.slotItem:hover .slotResize::before { opacity: 1; }
 .slotItem.urgent { background: var(--urgent); }
 .slotItem.progress { background: var(--progress); }
 .slotItem.extra { background: var(--extra); }

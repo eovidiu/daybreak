@@ -224,12 +224,54 @@ function slotItem(item, isTask) {
   label.innerHTML = `<div>${escapeHtml(item.title)}</div>
     <div class="slotTime">${fmtTime(start)} · ${dur}m</div>`
   el.appendChild(label)
+  const resize = document.createElement('div')
+  resize.className = 'slotResize'
+  el.appendChild(resize)
   el.onclick = () => {
     if (el.dataset.dragged) return delete el.dataset.dragged
     isTask ? openTaskEditor(item) : openEventEditor(item)
   }
   wireSlotDrag(el, item, isTask, dur)
+  wireSlotResize(resize, el, item, isTask)
   return el
+}
+
+async function patchSlot(item, isTask, patch) {
+  const base = isTask ? '/api/tasks' : '/api/events'
+  await api(`${base}/${item.id}`, { method: 'PATCH', body: JSON.stringify(patch) })
+  await loadDay()
+}
+
+function wireSlotResize(handle, el, item, isTask) {
+  handle.onpointerdown = (e) => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    const startY = e.clientY
+    const origH = el.offsetHeight
+    const maxH = (DAY_END_MIN - DAY_START_MIN) * PX_PER_MIN - parseFloat(el.style.top)
+    let moved = false
+    handle.setPointerCapture(e.pointerId)
+
+    handle.onpointermove = (ev) => {
+      const dy = ev.clientY - startY
+      if (!moved && Math.abs(dy) < 4) return
+      moved = true
+      el.classList.add('dragging')
+      el.style.height = `${Math.min(Math.max(15 * PX_PER_MIN, origH + dy), maxH)}px`
+    }
+
+    handle.onpointerup = async () => {
+      handle.onpointermove = null
+      handle.onpointerup = null
+      el.classList.remove('dragging')
+      if (!moved) return
+      el.dataset.dragged = '1'
+      const raw = parseFloat(el.style.height) / PX_PER_MIN
+      const minutes = Math.max(15, Math.round(raw / 15) * 15)
+      const patch = isTask ? { scheduled_minutes: minutes } : { duration_min: minutes }
+      await patchSlot(item, isTask, patch)
+    }
+  }
 }
 
 function wireSlotDrag(el, item, isTask, dur) {
@@ -257,10 +299,8 @@ function wireSlotDrag(el, item, isTask, dur) {
       el.dataset.dragged = '1'
       const raw = DAY_START_MIN + parseFloat(el.style.top) / PX_PER_MIN
       const snapped = Math.round(raw / 15) * 15
-      const patch = isTask ? { scheduled_start: snapped } : { start_min: snapped }
-      const base = isTask ? '/api/tasks' : '/api/events'
-      await api(`${base}/${item.id}`, { method: 'PATCH', body: JSON.stringify(patch) })
-      await loadDay()
+      await patchSlot(item, isTask, isTask
+        ? { scheduled_start: snapped } : { start_min: snapped })
     }
   }
 }
