@@ -1,4 +1,5 @@
-const ITERATIONS = 150000
+// Cloudflare Workers' WebCrypto rejects PBKDF2 iteration counts above 100000.
+const ITERATIONS = 100000
 
 const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)))
 const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0))
