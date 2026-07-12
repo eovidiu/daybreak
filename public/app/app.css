@@ -114,8 +114,11 @@ button { cursor: pointer; }
   font-size: 11px; color: var(--muted); padding-left: 2px; }
 .hourRow span { position: relative; top: -8px; background: var(--card); padding-right: 6px; }
 .slotItem { position: absolute; left: 52px; right: 8px; border-radius: 10px;
-  padding: 6px 10px; font-size: 13px; overflow: hidden; color: #fff; cursor: pointer;
-  display: flex; gap: 8px; align-items: flex-start; }
+  padding: 6px 10px; font-size: 13px; overflow: hidden; color: #fff; cursor: grab;
+  display: flex; gap: 8px; align-items: flex-start; touch-action: none;
+  user-select: none; }
+.slotItem.dragging { opacity: .75; cursor: grabbing; z-index: 3;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35); }
 .slotItem.urgent { background: var(--urgent); }
 .slotItem.progress { background: var(--progress); }
 .slotItem.extra { background: var(--extra); }

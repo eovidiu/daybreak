@@ -216,6 +216,7 @@ function slotItem(item, isTask) {
     box.type = 'checkbox'
     box.checked = item.done
     box.onclick = (e) => e.stopPropagation()
+    box.onpointerdown = (e) => e.stopPropagation()
     box.onchange = () => patchTask(item.id, { done: box.checked })
     el.appendChild(box)
   }
@@ -223,8 +224,45 @@ function slotItem(item, isTask) {
   label.innerHTML = `<div>${escapeHtml(item.title)}</div>
     <div class="slotTime">${fmtTime(start)} · ${dur}m</div>`
   el.appendChild(label)
-  el.onclick = () => (isTask ? openTaskEditor(item) : openEventEditor(item))
+  el.onclick = () => {
+    if (el.dataset.dragged) return delete el.dataset.dragged
+    isTask ? openTaskEditor(item) : openEventEditor(item)
+  }
+  wireSlotDrag(el, item, isTask, dur)
   return el
+}
+
+function wireSlotDrag(el, item, isTask, dur) {
+  el.onpointerdown = (e) => {
+    if (e.button !== 0) return
+    const startY = e.clientY
+    const origTop = parseFloat(el.style.top)
+    const maxTop = (DAY_END_MIN - DAY_START_MIN - dur) * PX_PER_MIN
+    let moved = false
+    el.setPointerCapture(e.pointerId)
+
+    el.onpointermove = (ev) => {
+      const dy = ev.clientY - startY
+      if (!moved && Math.abs(dy) < 6) return
+      moved = true
+      el.classList.add('dragging')
+      el.style.top = `${Math.min(Math.max(0, origTop + dy), maxTop)}px`
+    }
+
+    el.onpointerup = async () => {
+      el.onpointermove = null
+      el.onpointerup = null
+      el.classList.remove('dragging')
+      if (!moved) return
+      el.dataset.dragged = '1'
+      const raw = DAY_START_MIN + parseFloat(el.style.top) / PX_PER_MIN
+      const snapped = Math.round(raw / 15) * 15
+      const patch = isTask ? { scheduled_start: snapped } : { start_min: snapped }
+      const base = isTask ? '/api/tasks' : '/api/events'
+      await api(`${base}/${item.id}`, { method: 'PATCH', body: JSON.stringify(patch) })
+      await loadDay()
+    }
+  }
 }
 
 function escapeHtml(s) {

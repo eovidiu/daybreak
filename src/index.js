@@ -1,8 +1,13 @@
 import { Hono } from 'hono'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import { neon } from '@neondatabase/serverless'
-import { hashPassword, verifyPassword, newSessionToken } from './lib/auth.js'
+import Argon2 from '@phi-ag/argon2'
+import argon2Wasm from '@phi-ag/argon2/argon2.wasm'
+import { newSessionToken } from './lib/auth.js'
+import { createPasswords } from './lib/password.js'
 import { isDay, isBucket, taskPatch, eventInput, eventPatch } from './lib/validate.js'
+
+const passwords = createPasswords(new Argon2(await WebAssembly.instantiate(argon2Wasm)))
 
 const COOKIE = 'daybreak_session'
 const SESSION_DAYS = 30
@@ -54,7 +59,7 @@ app.post('/api/auth/signup', async (c) => {
   if (!EMAIL_RE.test(email)) return c.json({ error: 'valid email required' }, 400)
   if (password.length < 8) return c.json({ error: 'password must be 8+ characters' }, 400)
   const sql = c.get('sql')
-  const hash = await hashPassword(password)
+  const hash = await passwords.hashPassword(password)
   let rows
   try {
     rows = await sql.query(
@@ -77,8 +82,12 @@ app.post('/api/auth/signin', async (c) => {
   const rows = await sql.query(
     'select id, password_hash from users where email = $1', [email],
   )
-  const ok = rows.length && await verifyPassword(password, rows[0].password_hash)
+  const ok = rows.length && await passwords.verifyPassword(password, rows[0].password_hash)
   if (!ok) return c.json({ error: 'wrong email or password' }, 401)
+  if (passwords.needsRehash(rows[0].password_hash)) {
+    const fresh = await passwords.hashPassword(password)
+    await sql.query('update users set password_hash = $1 where id = $2', [fresh, rows[0].id])
+  }
   await startSession(c, sql, rows[0].id)
   return c.json({ ok: true })
 })
