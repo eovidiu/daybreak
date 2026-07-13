@@ -5,6 +5,7 @@ import Argon2 from '@phi-ag/argon2'
 import argon2Wasm from '@phi-ag/argon2/argon2.wasm'
 import { newSessionToken } from './lib/auth.js'
 import { createPasswords } from './lib/password.js'
+import { enabledProviders, authorizeUrl, fetchIdentity } from './lib/oauth.js'
 import { isDay, isBucket, taskPatch, eventInput, eventPatch } from './lib/validate.js'
 
 const passwords = createPasswords(new Argon2(await WebAssembly.instantiate(argon2Wasm)))
@@ -37,7 +38,7 @@ app.use('/api/*', async (c, next) => {
 const PUBLIC = new Set(['/api/auth/signup', '/api/auth/signin'])
 
 app.use('/api/*', async (c, next) => {
-  if (PUBLIC.has(c.req.path)) return next()
+  if (PUBLIC.has(c.req.path) || c.req.path.startsWith('/api/auth/oauth/')) return next()
   const token = getCookie(c, COOKIE)
   if (!token) return c.json({ error: 'unauthorized' }, 401)
   const rows = await c.get('sql').query(
@@ -100,6 +101,80 @@ app.post('/api/auth/signout', async (c) => {
 })
 
 app.get('/api/me', (c) => c.json(c.get('user')))
+
+/* ---------- OAuth sign-in ---------- */
+const OAUTH_COOKIE = 'daybreak_oauth'
+
+const callbackUri = (c, provider) =>
+  `${new URL(c.req.url).origin}/api/auth/oauth/${provider}/callback`
+
+app.get('/api/auth/oauth/providers', (c) => c.json({ providers: enabledProviders(c.env) }))
+
+app.get('/api/auth/oauth/:provider/start', (c) => {
+  const provider = c.req.param('provider')
+  if (!enabledProviders(c.env).includes(provider)) {
+    return c.json({ error: 'provider not configured' }, 404)
+  }
+  const state = newSessionToken()
+  setCookie(c, OAUTH_COOKIE, state, {
+    httpOnly: true, secure: true, sameSite: 'None', path: '/api/auth/oauth', maxAge: 600,
+  })
+  return c.redirect(authorizeUrl(provider, c.env, callbackUri(c, provider), state))
+})
+
+async function oauthUserId(sql, provider, identity) {
+  const linked = await sql.query(
+    'select user_id from identities where provider = $1 and provider_id = $2',
+    [provider, identity.providerId],
+  )
+  if (linked.length) return linked[0].user_id
+  const email = identity.email?.trim().toLowerCase()
+  if (!email) return null
+  let userId
+  const existing = await sql.query('select id from users where email = $1', [email])
+  if (existing.length) {
+    userId = existing[0].id
+  } else {
+    const rows = await sql.query(
+      'insert into users (email, name) values ($1, $2) returning id',
+      [email, (identity.name ?? '').slice(0, 100)],
+    )
+    userId = rows[0].id
+  }
+  await sql.query(
+    'insert into identities (provider, provider_id, user_id) values ($1, $2, $3)',
+    [provider, identity.providerId, userId],
+  )
+  return userId
+}
+
+async function oauthCallback(c) {
+  const provider = c.req.param('provider')
+  if (!enabledProviders(c.env).includes(provider)) {
+    return c.json({ error: 'provider not configured' }, 404)
+  }
+  const params = c.req.method === 'POST'
+    ? Object.fromEntries((await c.req.formData()).entries())
+    : Object.fromEntries(new URL(c.req.url).searchParams.entries())
+  const expected = getCookie(c, OAUTH_COOKIE)
+  deleteCookie(c, OAUTH_COOKIE, { path: '/api/auth/oauth' })
+  if (params.error || !params.code) return c.redirect('/app/?auth_error=cancelled')
+  if (!expected || params.state !== expected) return c.redirect('/app/?auth_error=state')
+
+  const identity = await fetchIdentity(provider, c.env, callbackUri(c, provider), params.code)
+  if (provider === 'apple' && params.user) {
+    const name = JSON.parse(params.user)?.name
+    if (name) identity.name = [name.firstName, name.lastName].filter(Boolean).join(' ')
+  }
+  const sql = c.get('sql')
+  const userId = await oauthUserId(sql, provider, identity)
+  if (!userId) return c.redirect('/app/?auth_error=email')
+  await startSession(c, sql, userId)
+  return c.redirect('/app/')
+}
+
+app.get('/api/auth/oauth/:provider/callback', oauthCallback)
+app.post('/api/auth/oauth/:provider/callback', oauthCallback)
 
 app.get('/api/day/:day', async (c) => {
   const day = c.req.param('day')

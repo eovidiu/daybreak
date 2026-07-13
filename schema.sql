@@ -4,9 +4,19 @@ create table users (
   id uuid primary key default gen_random_uuid(),
   email text unique not null,
   name text not null default '',
-  password_hash text not null,
+  password_hash text,
   created_at timestamptz not null default now()
 );
+
+-- OAuth sign-in identities (Google / Facebook / Apple)
+create table identities (
+  provider text not null,
+  provider_id text not null,
+  user_id uuid not null references users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (provider, provider_id)
+);
+create index identities_user on identities(user_id);
 
 create table sessions (
   token text primary key,

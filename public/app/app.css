@@ -39,6 +39,16 @@ button { cursor: pointer; }
   background: var(--ink); color: #fff; font-weight: 700; font-size: 15px; }
 .authCard .linkish { margin-top: 16px; }
 .authError { color: var(--urgent); font-size: 14px; }
+.socialAuth { margin-top: 18px; }
+.socialDivider { display: flex; align-items: center; gap: 10px; color: var(--muted);
+  font-size: 12px; margin-bottom: 12px; }
+.socialDivider::before, .socialDivider::after { content: ''; flex: 1; height: 1px;
+  background: var(--line); }
+.socialButtons { display: flex; flex-direction: column; gap: 8px; }
+.socialButton { display: block; text-align: center; padding: 11px; border-radius: 10px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink); font-weight: 600;
+  font-size: 14px; text-decoration: none; }
+.socialButton:hover { background: #faf6ee; }
 
 /* ---- layout ---- */
 .topbar { display: flex; align-items: center; justify-content: space-between;

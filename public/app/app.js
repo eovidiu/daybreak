@@ -40,9 +40,40 @@ async function api(path, options = {}) {
 /* ---------- auth ---------- */
 let signupMode = false
 
+const OAUTH_ERRORS = {
+  cancelled: 'Sign-in was cancelled.',
+  state: 'Sign-in expired — please try again.',
+  email: 'That account shares no email address. Try another method.',
+}
+
 function showAuth() {
   $('#planner').classList.add('hidden')
   $('#auth').classList.remove('hidden')
+  loadProviders()
+  const err = OAUTH_ERRORS[new URLSearchParams(location.search).get('auth_error')]
+  if (err) {
+    $('#authError').textContent = err
+    $('#authError').classList.remove('hidden')
+    history.replaceState(null, '', '/app/')
+  }
+}
+
+let providersLoaded = false
+async function loadProviders() {
+  if (providersLoaded) return
+  providersLoaded = true
+  const { providers } = await api('/api/auth/oauth/providers').catch(() => ({ providers: [] }))
+  if (!providers?.length) return
+  const box = $('#socialButtons')
+  const label = { google: 'Google', facebook: 'Facebook', apple: 'Apple' }
+  for (const p of providers) {
+    const a = document.createElement('a')
+    a.className = 'socialButton'
+    a.href = `/api/auth/oauth/${p}/start`
+    a.textContent = `Continue with ${label[p] ?? p}`
+    box.appendChild(a)
+  }
+  $('#socialAuth').classList.remove('hidden')
 }
 
 function setAuthMode(signup) {
