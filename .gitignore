@@ -4,3 +4,7 @@ node_modules/
 .env
 .DS_Store
 docs/
+ios/build/
+ios/build-sim/
+ios/*.xcodeproj
+xcuserdata/

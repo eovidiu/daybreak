@@ -1,0 +1,40 @@
+name: Daybreak
+options:
+  bundleIdPrefix: com.eovidiu
+settings:
+  base:
+    DEVELOPMENT_TEAM: HV325Z3W39
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: Apple Development
+    PROVISIONING_PROFILE_SPECIFIER: "iOS Team Provisioning Profile: *"
+    SWIFT_VERSION: "5.0"
+targets:
+  Daybreak:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [Daybreak]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.eovidiu.daybreak
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Daybreak
+  DaybreakUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [DaybreakUITests]
+    dependencies:
+      - target: Daybreak
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Daybreak:
+    build:
+      targets:
+        Daybreak: all
+        DaybreakUITests: [test]
+    test:
+      targets: [DaybreakUITests]
