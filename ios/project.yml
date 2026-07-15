@@ -8,6 +8,7 @@ settings:
     CODE_SIGN_IDENTITY: Apple Development
     PROVISIONING_PROFILE_SPECIFIER: "iOS Team Provisioning Profile: *"
     SWIFT_VERSION: "5.0"
+    ENABLE_DEBUG_DYLIB: NO
 targets:
   Daybreak:
     type: application
