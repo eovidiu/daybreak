@@ -168,7 +168,7 @@ struct TaskRow: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { onEdit(task) }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-\(task.title)")
     }
 }

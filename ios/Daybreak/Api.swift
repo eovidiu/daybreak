@@ -88,7 +88,10 @@ struct ApiClient {
     private func request<T: Decodable>(
         _ method: String, _ path: String, body: [String: Any?]? = nil, as type: T.Type
     ) async throws -> T {
-        var req = URLRequest(url: base.appending(path: path))
+        guard let url = URL(string: path, relativeTo: base) else {
+            throw ApiError(message: "bad path \(path)")
+        }
+        var req = URLRequest(url: url)
         req.httpMethod = method
         if let body {
             req.setValue("application/json", forHTTPHeaderField: "content-type")

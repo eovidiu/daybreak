@@ -69,7 +69,7 @@ final class PlannerStore: ObservableObject {
 
     func toggle(_ task: PlannerTask) {
         sync {
-            if let i = data.tasks.firstIndex(of: task) { data.tasks[i].done.toggle() }
+            if let i = data.tasks.firstIndex(where: { $0.id == task.id }) { data.tasks[i].done.toggle() }
         } send: { [api] in
             try await api.patchTask(task.id, ["done": !task.done])
         }
@@ -77,7 +77,7 @@ final class PlannerStore: ObservableObject {
 
     func schedule(_ task: PlannerTask, start: Int?, minutes: Int?) {
         sync {
-            if let i = data.tasks.firstIndex(of: task) {
+            if let i = data.tasks.firstIndex(where: { $0.id == task.id }) {
                 data.tasks[i].scheduledStart = start
                 data.tasks[i].scheduledMinutes = minutes
             }
@@ -89,7 +89,7 @@ final class PlannerStore: ObservableObject {
 
     func update(_ task: PlannerTask, title: String, note: String, bucket: Bucket) {
         sync {
-            if let i = data.tasks.firstIndex(of: task) {
+            if let i = data.tasks.firstIndex(where: { $0.id == task.id }) {
                 data.tasks[i].title = title
                 data.tasks[i].note = note
                 data.tasks[i].bucket = bucket
@@ -121,7 +121,7 @@ final class PlannerStore: ObservableObject {
 
     func move(_ event: PlannerEvent, toStart start: Int) {
         sync {
-            if let i = data.events.firstIndex(of: event) { data.events[i].startMin = start }
+            if let i = data.events.firstIndex(where: { $0.id == event.id }) { data.events[i].startMin = start }
         } send: { [api] in
             try await api.patchEvent(event.id, ["start_min": start])
         }
@@ -129,7 +129,7 @@ final class PlannerStore: ObservableObject {
 
     func moveScheduled(_ task: PlannerTask, toStart start: Int) {
         sync {
-            if let i = data.tasks.firstIndex(of: task) { data.tasks[i].scheduledStart = start }
+            if let i = data.tasks.firstIndex(where: { $0.id == task.id }) { data.tasks[i].scheduledStart = start }
         } send: { [api] in
             try await api.patchTask(task.id, ["scheduled_start": start])
         }
@@ -138,7 +138,7 @@ final class PlannerStore: ObservableObject {
     func update(_ event: PlannerEvent, title: String, note: String, bucket: Bucket,
                 start: Int, minutes: Int) {
         sync {
-            if let i = data.events.firstIndex(of: event) {
+            if let i = data.events.firstIndex(where: { $0.id == event.id }) {
                 data.events[i] = PlannerEvent(id: event.id, day: event.day, bucket: bucket,
                                               title: title, note: note,
                                               startMin: start, durationMin: minutes)

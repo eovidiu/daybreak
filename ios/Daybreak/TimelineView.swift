@@ -35,6 +35,7 @@ struct TimelineSection: View {
                 }
             }
             .frame(height: CGFloat(dayEndMin - dayStartMin) * pxPerMin)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("timeline")
         }
         .padding(14)
@@ -101,6 +102,7 @@ struct SlotBlock: View {
         .offset(y: CGFloat(start - dayStartMin) * pxPerMin + dragOffset)
         .onTapGesture(perform: onTap)
         .gesture(moveGesture)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("slot-\(title)")
     }
 

@@ -9,6 +9,12 @@ final class DaybreakUITests: XCTestCase {
         app.launch()
     }
 
+    // Type-agnostic element lookup: SwiftUI surfaces identified stacks with
+    // varying element types, so never query a specific type.
+    func elem(_ id: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: id).firstMatch
+    }
+
     func scrollTo(_ element: XCUIElement, maxSwipes: Int = 6) {
         var swipes = 0
         while !element.isHittable && swipes < maxSwipes {
@@ -53,7 +59,7 @@ final class DaybreakUITests: XCTestCase {
         field.tap()
         field.typeText(title)
         app.buttons["addTaskButton-\(bucket)"].tap()
-        XCTAssertTrue(app.otherElements["task-\(title)"]
+        XCTAssertTrue(elem("task-\(title)")
             .waitForExistence(timeout: 5), "task \(title) should appear")
     }
 
@@ -66,10 +72,10 @@ final class DaybreakUITests: XCTestCase {
         addTask("Tidy desk", bucket: "extra")
 
         // 2. Complete a task
-        app.buttons["toggle-Tidy desk"].tap()
+        elem("toggle-Tidy desk").tap()
 
         // 3. Edit + schedule a task at a time block
-        let task = app.otherElements["task-Draft roadmap"]
+        let task = elem("task-Draft roadmap")
         scrollTo(task)
         task.tap()
         let scheduledToggle = app.switches["scheduledToggle"]
@@ -80,7 +86,7 @@ final class DaybreakUITests: XCTestCase {
         app.buttons["saveItem"].tap()
 
         // 4. Scheduled task shows on the timeline
-        let slot = app.otherElements["slot-Draft roadmap"]
+        let slot = elem("slot-Draft roadmap")
         scrollTo(slot)
         XCTAssertTrue(slot.waitForExistence(timeout: 5), "scheduled task on timeline")
 
@@ -90,20 +96,20 @@ final class DaybreakUITests: XCTestCase {
         let evTitle = app.textFields["newEventTitle"]
         XCTAssertTrue(evTitle.waitForExistence(timeout: 5))
         evTitle.tap(); evTitle.typeText("Team sync")
-        app.steppers["startStepper"].buttons["Increment"].tap(withNumberOfTaps: 4,
-                                                              numberOfTouches: 1)
+        app.buttons["startStepper-Increment"].tap(withNumberOfTaps: 4,
+                                                  numberOfTouches: 1)
         app.buttons["saveItem"].tap()
-        let evSlot = app.otherElements["slot-Team sync"]
+        let evSlot = elem("slot-Team sync")
         scrollTo(evSlot)
         XCTAssertTrue(evSlot.waitForExistence(timeout: 5), "event on timeline")
 
         // 6. Edit the event: change duration
         evSlot.tap()
-        let duration = app.steppers["durationStepper"]
+        let duration = app.buttons["durationStepper-Increment"]
         XCTAssertTrue(duration.waitForExistence(timeout: 5))
-        duration.buttons["Increment"].tap(withNumberOfTaps: 2, numberOfTouches: 1)
+        duration.tap(withNumberOfTaps: 2, numberOfTouches: 1)
         app.buttons["saveItem"].tap()
-        XCTAssertTrue(app.otherElements["slot-Team sync"].waitForExistence(timeout: 5))
+        XCTAssertTrue(elem("slot-Team sync").waitForExistence(timeout: 5))
 
         // 7. Persistence: sign out, sign back in via the same account is covered by
         //    testSessionPersistence; here verify state survives a relaunch (cookie).
@@ -111,18 +117,18 @@ final class DaybreakUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["menuButton"].waitForExistence(timeout: 10),
                       "session cookie should survive relaunch")
-        let persisted = app.otherElements["task-Pay invoice"]
+        let persisted = elem("task-Pay invoice")
         scrollTo(persisted)
         XCTAssertTrue(persisted.waitForExistence(timeout: 5), "tasks persist")
 
         // 8. Delete the event
-        let slotAgain = app.otherElements["slot-Team sync"]
+        let slotAgain = elem("slot-Team sync")
         scrollTo(slotAgain)
         slotAgain.tap()
         let delete = app.buttons["deleteItem"]
         XCTAssertTrue(delete.waitForExistence(timeout: 5))
         delete.tap()
-        XCTAssertFalse(app.otherElements["slot-Team sync"]
+        XCTAssertFalse(elem("slot-Team sync")
             .waitForExistence(timeout: 3), "event deleted")
 
         // 9. Day navigation: yesterday, then back to today
@@ -137,7 +143,7 @@ final class DaybreakUITests: XCTestCase {
         let todayButton = app.buttons["todayButton"]
         XCTAssertTrue(todayButton.isEnabled, "Today button enabled off-today")
         todayButton.tap()
-        let back = app.otherElements["task-Pay invoice"]
+        let back = elem("task-Pay invoice")
         scrollTo(back)
         XCTAssertTrue(back.waitForExistence(timeout: 5), "back on today")
     }
