@@ -1,5 +1,5 @@
-const DAY_START_MIN = 6 * 60
-const DAY_END_MIN = 22 * 60
+const DAY_START_MIN = 0
+const DAY_END_MIN = 24 * 60
 const PX_PER_MIN = 1.5
 
 const $ = (sel) => document.querySelector(sel)

@@ -172,7 +172,7 @@ struct TimeControls: View {
     @Binding var minutes: Int
 
     var body: some View {
-        Stepper(value: $start, in: 6 * 60...(22 * 60 - 15), step: 15) {
+        Stepper(value: $start, in: 0...(24 * 60 - 15), step: 15) {
             HStack {
                 Text("Start")
                 Spacer()

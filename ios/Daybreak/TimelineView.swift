@@ -1,7 +1,7 @@
 import SwiftUI
 
-private let dayStartMin = 6 * 60
-private let dayEndMin = 22 * 60
+private let dayStartMin = 0
+private let dayEndMin = 24 * 60
 private let pxPerMin: CGFloat = 1.5
 
 struct TimelineSection: View {
