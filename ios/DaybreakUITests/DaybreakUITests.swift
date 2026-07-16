@@ -209,9 +209,14 @@ final class DaybreakUITests: XCTestCase {
         XCTAssertTrue(elem("slot-Standup").waitForExistence(timeout: 5),
                       "event still present after drag")
 
-        // Delete it via the editor.
-        elem("slot-Standup").tap()
+        // Delete it via the editor. On device a tap immediately after a drag can be
+        // dropped, so open the editor with a short retry and confirm it appeared.
         let delete = app.buttons["deleteItem"]
+        let editTitle = app.textFields["editTitle"]
+        for _ in 0..<3 where !editTitle.waitForExistence(timeout: 2) {
+            let slot = elem("slot-Standup")
+            if slot.isHittable { slot.tap() }
+        }
         XCTAssertTrue(delete.waitForExistence(timeout: 5))
         delete.tap()
         XCTAssertFalse(elem("slot-Standup").waitForExistence(timeout: 3))
