@@ -11,3 +11,4 @@ xcuserdata/
 test-results/
 playwright-report/
 e2e/coverage-report.txt
+coverage/
