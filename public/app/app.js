@@ -28,11 +28,11 @@ async function api(path, options = {}) {
     headers: options.body ? { 'content-type': 'application/json' } : {},
     ...options,
   })
-  if (res.status === 401) {
-    showAuth()
-    throw new Error('unauthorized')
-  }
   const data = await res.json().catch(() => ({}))
+  if (res.status === 401 && !path.startsWith('/api/auth/')) {
+    showAuth()
+    throw new Error(data.error || 'unauthorized')
+  }
   if (!res.ok) throw new Error(data.error || 'request failed')
   return data
 }
@@ -144,7 +144,10 @@ function renderWeekStrip() {
     if (day === localToday()) chip.classList.add('isToday')
     chip.innerHTML = `<small>${d.toLocaleDateString(undefined, { weekday: 'short' })}</small>
       <strong>${d.getDate()}</strong>`
-    chip.onclick = () => { state.day = day; scrollTimelineToMorning(); loadDay() }
+    chip.onclick = () => {
+      state.day = day
+      loadDay().then(scrollTimelineToMorning)
+    }
     strip.appendChild(chip)
   }
 }
@@ -220,8 +223,20 @@ function renderEarlier() {
 
 const VIEW_START_MIN = 8 * 60
 
+function firstTimelineMin() {
+  const starts = [
+    ...state.events.map((e) => e.start_min),
+    ...state.tasks.filter((t) => t.scheduled_start != null)
+      .map((t) => t.scheduled_start),
+  ]
+  return starts.length ? Math.min(...starts) : null
+}
+
+// Opens on 08:00, unless something is scheduled earlier — then show it.
 function scrollTimelineToMorning() {
-  $('#timeline').scrollTop = VIEW_START_MIN * PX_PER_MIN
+  const first = firstTimelineMin()
+  const target = first != null && first < VIEW_START_MIN ? first : VIEW_START_MIN
+  $('#timeline').scrollTop = target * PX_PER_MIN
 }
 
 function renderTimeline() {
@@ -389,8 +404,7 @@ const openEventEditor = (ev) => openEditor({
   title: 'Edit event', item: ev, isTask: false, showTime: true,
 })
 
-function editorPatch() {
-  const { isTask } = editorContext
+function editorPatch(isTask) {
   const patch = {
     title: $('#editorName').value,
     note: $('#editorNote').value,
@@ -409,15 +423,17 @@ function editorPatch() {
 }
 
 async function handleEditorClose() {
-  const { item, isTask } = editorContext || {}
-  const action = editor.returnValue
+  const ctx = editorContext
   editorContext = null
-  if (!item || action === 'cancel' || !action) return
-  const base = isTask ? '/api/tasks' : '/api/events'
+  const action = editor.returnValue
+  if (!ctx?.item || action === 'cancel' || !action) return
+  const base = ctx.isTask ? '/api/tasks' : '/api/events'
   if (action === 'delete') {
-    await api(`${base}/${item.id}`, { method: 'DELETE' })
+    await api(`${base}/${ctx.item.id}`, { method: 'DELETE' })
   } else {
-    await api(`${base}/${item.id}`, { method: 'PATCH', body: JSON.stringify(editorPatch()) })
+    await api(`${base}/${ctx.item.id}`, {
+      method: 'PATCH', body: JSON.stringify(editorPatch(ctx.isTask)),
+    })
   }
   await loadDay()
 }
@@ -469,8 +485,8 @@ async function boot() {
   }
   $('#auth').classList.add('hidden')
   $('#planner').classList.remove('hidden')
-  scrollTimelineToMorning()
   await loadDay()
+  scrollTimelineToMorning()
 }
 
 $('#authForm').onsubmit = handleAuthSubmit
@@ -481,8 +497,7 @@ $('#signOut').onclick = async () => {
 }
 $('#todayBtn').onclick = () => {
   state.day = localToday()
-  scrollTimelineToMorning()
-  loadDay()
+  loadDay().then(scrollTimelineToMorning)
 }
 $('#addEvent').onclick = createEvent
 editor.addEventListener('close', handleEditorClose)
