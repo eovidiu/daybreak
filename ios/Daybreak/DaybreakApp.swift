@@ -19,11 +19,12 @@ struct RootView: View {
     var body: some View {
         Group {
             if !store.checkedSession {
-                ProgressView()
+                ZStack { Theme.paper.ignoresSafeArea(); ProgressView().tint(Theme.muted) }
             } else if store.user == nil {
                 AuthView()
             } else {
                 PlannerView()
+                    .tint(Theme.ink)
             }
         }
         .alert("Something went wrong", isPresented: .init(

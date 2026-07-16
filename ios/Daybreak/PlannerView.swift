@@ -22,9 +22,11 @@ struct PlannerView: View {
                 }
                 .padding(.horizontal)
             }
+            .background(Theme.paper.ignoresSafeArea())
             .navigationTitle(store.day == Day.today()
                              ? "Today" : Day.label(store.day))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Theme.paper, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Today") { store.select(day: Day.today()) }
@@ -62,27 +64,31 @@ struct WeekStrip: View {
                 Button {
                     store.select(day: day)
                 } label: {
-                    VStack(spacing: 2) {
-                        Text(parts.weekday).font(.caption2)
-                        Text(parts.dayNum).font(.headline)
+                    VStack(spacing: 3) {
+                        Text(parts.weekday.uppercased())
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(day == store.day
+                                             ? Theme.paper.opacity(0.7) : Theme.muted)
+                        Text(parts.dayNum)
+                            .font(.serif(18, .semibold))
+                            .foregroundStyle(dayNumColor(day))
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(day == store.day ? Color.primary : Color(.systemGray6))
-                    .foregroundStyle(day == store.day
-                                     ? Color(.systemBackground) : .primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay {
-                        if day == Day.today() {
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(.orange, lineWidth: day == store.day ? 0 : 1.5)
-                        }
-                    }
+                    .padding(.vertical, 9)
+                    .background(day == store.day ? Theme.ink : Theme.card,
+                                in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12)
+                        .stroke(day == store.day ? .clear : Theme.hairline))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("day-\(day)")
             }
         }
+    }
+
+    private func dayNumColor(_ day: String) -> Color {
+        if day == Day.today() { return day == store.day ? Color(hex: 0xE9A58F) : Theme.urgent }
+        return day == store.day ? Theme.paper : Theme.ink
     }
 }
 
@@ -92,40 +98,45 @@ struct BucketSection: View {
     let onEdit: (PlannerTask) -> Void
     @State private var newTitle = ""
 
-    var color: Color {
-        switch bucket {
-        case .urgent: .red
-        case .progress: .green
-        case .extra: .blue
-        }
-    }
+    var color: Color { Theme.accent(bucket) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(bucket.title).font(.headline).foregroundStyle(color)
-                Text(bucket.subtitle).font(.caption).foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(bucket.title).font(.serif(20, .semibold)).foregroundStyle(color)
+                Text(bucket.subtitle).font(.caption).foregroundStyle(Theme.muted)
             }
             ForEach(store.data.tasks.filter { $0.bucket == bucket }) { task in
                 TaskRow(task: task, onEdit: onEdit)
             }
-            HStack {
+            HStack(spacing: 8) {
                 TextField("Add a task…", text: $newTitle)
                     .textFieldStyle(.plain)
+                    .font(.system(size: 15, design: .serif))
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("addTask-\(bucket.rawValue)")
                     .onSubmit(add)
                 Button(action: add) {
-                    Image(systemName: "plus.circle.fill").foregroundStyle(color)
+                    Image(systemName: "plus").font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.ink).frame(width: 30, height: 30)
+                        .overlay(Circle().stroke(Theme.hairline))
                 }
                 .accessibilityIdentifier("addTaskButton-\(bucket.rawValue)")
             }
-            .padding(10)
-            .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10))
+            .padding(.top, 4)
+            .overlay(alignment: .top) { Rectangle().fill(Theme.hairline).frame(height: 1) }
         }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 14))
+        .padding(16)
+        .padding(.leading, 4)
+        .background(alignment: .leading) {
+            HStack(spacing: 0) {
+                Rectangle().fill(color).frame(width: 4)
+                Theme.card
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
+        .shadow(color: Theme.ink.opacity(0.05), radius: 12, y: 4)
     }
 
     private func add() {
@@ -142,28 +153,30 @@ struct TaskRow: View {
     let onEdit: (PlannerTask) -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 11) {
             Button {
                 store.toggle(task)
             } label: {
                 Image(systemName: task.done ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(task.done ? .green : .secondary)
-                    .font(.title3)
+                    .foregroundStyle(task.done ? Theme.progress : Theme.muted)
+                    .font(.system(size: 19))
             }
             .accessibilityIdentifier("toggle-\(task.title)")
 
             Text(task.title)
+                .font(.system(size: 15))
                 .strikethrough(task.done)
-                .foregroundStyle(task.done ? .secondary : .primary)
+                .foregroundStyle(task.done ? Theme.muted : Theme.ink)
             Spacer()
             if !task.note.isEmpty {
-                Image(systemName: "note.text").font(.caption).foregroundStyle(.secondary)
+                Image(systemName: "text.alignleft").font(.caption).foregroundStyle(Theme.muted)
             }
             if let start = task.scheduledStart {
                 Text(Day.time(start))
-                    .font(.caption2)
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(Capsule().stroke(.secondary.opacity(0.4)))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(Theme.muted)
+                    .padding(.horizontal, 8).padding(.vertical, 2)
+                    .background(Capsule().stroke(Theme.hairline))
             }
         }
         .contentShape(Rectangle())
@@ -178,30 +191,31 @@ struct EarlierSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Earlier").font(.headline).foregroundStyle(.secondary)
+            Text("Earlier").font(.serif(16, .semibold)).foregroundStyle(Theme.inkSoft)
             Text("Unfinished tasks from past days.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(Theme.muted)
             ForEach(store.earlier) { task in
-                HStack {
-                    Text(String(task.day.suffix(5))).font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text(task.title).foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    Text(String(task.day.suffix(5))).font(.caption2.monospacedDigit())
+                        .foregroundStyle(Theme.muted)
+                    Text(task.title).font(.system(size: 14)).foregroundStyle(Theme.inkSoft)
                     Spacer()
                     Button("Today") { store.pullIntoToday(task) }
-                        .font(.caption).buttonStyle(.bordered)
+                        .font(.caption.weight(.semibold)).tint(Theme.ink)
+                        .buttonStyle(.bordered)
                         .accessibilityIdentifier("pull-\(task.title)")
                     Button(role: .destructive) {
                         store.deleteEarlier(task)
                     } label: {
-                        Image(systemName: "xmark").font(.caption)
+                        Image(systemName: "xmark").font(.caption).foregroundStyle(Theme.muted)
                     }
                     .accessibilityIdentifier("dropEarlier-\(task.title)")
                 }
             }
         }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 14))
+        .padding(16)
+        .background(Theme.paperDim, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("earlierSection")
     }

@@ -22,7 +22,7 @@ struct TimelineSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Timeline").font(.headline)
+            Text("Timeline").font(.serif(20, .semibold)).foregroundStyle(Theme.ink)
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
                     ZStack(alignment: .topLeading) {
@@ -46,9 +46,10 @@ struct TimelineSection: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("timeline")
         }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 14))
+        .padding(16)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
+        .shadow(color: Theme.ink.opacity(0.05), radius: 12, y: 4)
     }
 
     @ViewBuilder private var slotBlocks: some View {
@@ -79,8 +80,9 @@ private struct HourGrid: View {
         ForEach(Array(stride(from: dayStartMin, through: dayEndMin, by: 60)), id: \.self) {
             min in
             VStack(spacing: 0) {
-                Divider()
-                Text(Day.time(min)).font(.caption2).foregroundStyle(.tertiary)
+                Rectangle().fill(Theme.hairline).frame(height: 1)
+                Text(Day.time(min)).font(.caption2.monospacedDigit())
+                    .foregroundStyle(Theme.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .offset(y: CGFloat(min - dayStartMin) * pxPerMin)
@@ -101,13 +103,7 @@ struct SlotBlock: View {
     @State private var dragOffset: CGFloat = 0
     @GestureState private var isDragging = false
 
-    private var color: Color {
-        switch bucket {
-        case .urgent: .red
-        case .progress: .green
-        case .extra: .blue
-        }
-    }
+    private var accent: Color { Theme.accent(bucket) }
 
     var body: some View {
         HStack(alignment: .top, spacing: 6) {
@@ -118,18 +114,24 @@ struct SlotBlock: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.footnote.weight(.semibold)).lineLimit(1)
                 Text("\(Day.time(start)) · \(minutes)m")
-                    .font(.caption2).opacity(0.85)
+                    .font(.caption2.monospacedDigit()).opacity(0.75)
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 8).padding(.vertical, 5)
+        .padding(.horizontal, 10).padding(.vertical, 5)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: max(26, CGFloat(minutes) * pxPerMin - 2), alignment: .top)
-        .background(color.opacity(isDragging ? 0.7 : 0.9),
-                    in: RoundedRectangle(cornerRadius: 8))
-        .foregroundStyle(.white)
+        .foregroundStyle(Theme.slotInk(bucket))
+        .background(alignment: .leading) {
+            HStack(spacing: 0) {
+                Rectangle().fill(accent).frame(width: isTask ? 4 : 3)
+                Theme.slotFill(bucket).opacity(isDragging ? 0.6 : 1)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .padding(.leading, 44)
         .offset(y: CGFloat(start - dayStartMin) * pxPerMin + dragOffset)
+        .shadow(color: isDragging ? Theme.ink.opacity(0.22) : .clear, radius: 8)
         .onTapGesture(perform: onTap)
         .gesture(moveGesture)
         .accessibilityElement(children: .contain)
