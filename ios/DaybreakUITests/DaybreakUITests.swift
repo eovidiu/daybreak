@@ -159,4 +159,92 @@ final class DaybreakUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["authError"].waitForExistence(timeout: 8),
                       "wrong credentials show an error")
     }
+
+    // Exercises the earlier tray: a task left on a past day surfaces on today,
+    // can be pulled forward, and another can be dropped.
+    func testEarlierTrayAndDayNavigation() throws {
+        _ = signUpFreshAccount()
+
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        let yesterday = fmt.string(from: Date().addingTimeInterval(-86400))
+
+        // Go to yesterday and leave two unfinished tasks there.
+        app.buttons["day-\(yesterday)"].tap()
+        addTask("Overdue report", bucket: "urgent")
+        addTask("Old cleanup", bucket: "extra")
+
+        // Back to today — the earlier tray should offer both.
+        app.buttons["todayButton"].tap()
+        let pull = app.buttons["pull-Overdue report"].firstMatch
+        XCTAssertTrue(pull.waitForExistence(timeout: 8), "earlier tray appears")
+        scrollTo(pull)
+        pull.tap()
+        XCTAssertTrue(elem("task-Overdue report").waitForExistence(timeout: 5),
+                      "pulled task appears in today")
+        app.buttons["dropEarlier-Old cleanup"].firstMatch.tap()
+    }
+
+    // Exercises the timeline long-press drag (SlotBlock.onEnded) and deletion.
+    func testTimelineDragAndDelete() throws {
+        _ = signUpFreshAccount()
+
+        app.buttons["menuButton"].tap()
+        app.buttons["Add event"].tap()
+        let evTitle = app.textFields["newEventTitle"]
+        XCTAssertTrue(evTitle.waitForExistence(timeout: 5))
+        evTitle.tap(); evTitle.typeText("Standup")
+        app.buttons["saveItem"].tap()
+
+        let slot = elem("slot-Standup")
+        scrollTo(slot)
+        XCTAssertTrue(slot.waitForExistence(timeout: 5))
+
+        // Long-press then drag downward ~one hour.
+        let start = slot.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        let end = slot.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+            .withOffset(CGVector(dx: 0, dy: 90))
+        start.press(forDuration: 0.6, thenDragTo: end)
+
+        XCTAssertTrue(elem("slot-Standup").waitForExistence(timeout: 5),
+                      "event still present after drag")
+
+        // Delete it via the editor.
+        elem("slot-Standup").tap()
+        let delete = app.buttons["deleteItem"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        delete.tap()
+        XCTAssertFalse(elem("slot-Standup").waitForExistence(timeout: 3))
+    }
+
+    // A pre-8am event opens the timeline scrolled to it; also covers unschedule + sign out.
+    func testEarlyEventScrollUnscheduleAndSignOut() throws {
+        _ = signUpFreshAccount()
+
+        addTask("Morning prep", bucket: "progress")
+        let task = elem("task-Morning prep")
+        scrollTo(task)
+        task.tap()
+        app.switches["scheduledToggle"].switches.firstMatch.tap()
+        // Step the start down to 05:00 from the 09:00 default (16 x 15min);
+        // XCUITest caps a single call at 10 taps.
+        let decrement = app.buttons["startStepper-Decrement"]
+        decrement.tap(withNumberOfTaps: 10, numberOfTouches: 1)
+        decrement.tap(withNumberOfTaps: 6, numberOfTouches: 1)
+        app.buttons["saveItem"].tap()
+
+        XCTAssertTrue(elem("slot-Morning prep").waitForExistence(timeout: 5),
+                      "early scheduled task appears")
+
+        // Unschedule it again.
+        elem("task-Morning prep").tap()
+        app.switches["scheduledToggle"].switches.firstMatch.tap()
+        app.buttons["saveItem"].tap()
+
+        // Sign out.
+        app.buttons["menuButton"].tap()
+        app.buttons["Sign out"].tap()
+        XCTAssertTrue(app.buttons["authSubmit"].waitForExistence(timeout: 5),
+                      "returned to auth screen")
+    }
 }

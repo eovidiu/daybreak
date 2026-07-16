@@ -2,7 +2,11 @@ import SwiftUI
 
 @MainActor
 final class PlannerStore: ObservableObject {
-    let api = ApiClient()
+    let api: PlannerApi
+
+    init(api: PlannerApi = ApiClient()) {
+        self.api = api
+    }
 
     @Published var user: User?
     @Published var checkedSession = false
@@ -10,6 +14,7 @@ final class PlannerStore: ObservableObject {
     @Published var data = DayData(tasks: [], events: [])
     @Published var earlier: [EarlierTask] = []
     @Published var errorMessage: String?
+    @Published var dayLoadStamp = 0
 
     private var cache: [String: DayData] = [:]
 
@@ -40,6 +45,7 @@ final class PlannerStore: ObservableObject {
             cache[day] = dayData
             data = dayData
             earlier = earlierTasks
+            dayLoadStamp += 1
         } catch {
             report(error)
         }

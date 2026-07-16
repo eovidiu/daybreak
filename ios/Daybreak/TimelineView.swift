@@ -12,6 +12,14 @@ struct TimelineSection: View {
     private let viewStartMin = 8 * 60
     private let viewHours = 12
 
+    // Opens on 08:00, unless something is scheduled earlier — then show it.
+    private var anchorMin: Int {
+        let starts = store.data.events.map(\.startMin)
+            + store.data.tasks.compactMap(\.scheduledStart)
+        guard let first = starts.min() else { return viewStartMin }
+        return min(first, viewStartMin)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Timeline").font(.headline)
@@ -20,7 +28,7 @@ struct TimelineSection: View {
                     ZStack(alignment: .topLeading) {
                         HourGrid()
                         Color.clear.frame(width: 1, height: 1)
-                            .offset(y: CGFloat(viewStartMin) * pxPerMin)
+                            .offset(y: CGFloat(anchorMin) * pxPerMin)
                             .id("morningAnchor")
                         slotBlocks
                     }
@@ -29,6 +37,9 @@ struct TimelineSection: View {
                 .frame(height: CGFloat(viewHours * 60) * pxPerMin)
                 .onAppear { proxy.scrollTo("morningAnchor", anchor: .top) }
                 .onChange(of: store.day) {
+                    proxy.scrollTo("morningAnchor", anchor: .top)
+                }
+                .onChange(of: store.dayLoadStamp) {
                     proxy.scrollTo("morningAnchor", anchor: .top)
                 }
             }

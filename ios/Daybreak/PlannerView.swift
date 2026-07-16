@@ -202,6 +202,7 @@ struct EarlierSection: View {
         .padding(14)
         .background(Color(.secondarySystemGroupedBackground),
                     in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("earlierSection")
     }
 }

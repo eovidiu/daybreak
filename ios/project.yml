@@ -31,11 +31,25 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+  DaybreakTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [DaybreakTests]
+    dependencies:
+      - target: Daybreak
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   Daybreak:
     build:
       targets:
         Daybreak: all
         DaybreakUITests: [test]
+        DaybreakTests: [test]
     test:
-      targets: [DaybreakUITests]
+      gatherCoverageData: true
+      coverageTargets:
+        - Daybreak
+      targets: [DaybreakTests, DaybreakUITests]

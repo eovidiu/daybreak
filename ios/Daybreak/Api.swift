@@ -77,7 +77,23 @@ struct ApiError: Error, LocalizedError {
     var errorDescription: String? { message }
 }
 
-struct ApiClient {
+protocol PlannerApi {
+    func me() async throws -> User
+    func signIn(email: String, password: String) async throws
+    func signUp(email: String, password: String, name: String) async throws
+    func signOut() async throws
+    func day(_ day: String) async throws -> DayData
+    func earlier(before: String) async throws -> [EarlierTask]
+    func createTask(day: String, bucket: Bucket, title: String) async throws -> PlannerTask
+    func patchTask(_ id: String, _ patch: [String: Any?]) async throws
+    func deleteTask(_ id: String) async throws
+    func createEvent(day: String, bucket: Bucket, title: String,
+                     startMin: Int, durationMin: Int) async throws -> PlannerEvent
+    func patchEvent(_ id: String, _ patch: [String: Any?]) async throws
+    func deleteEvent(_ id: String) async throws
+}
+
+struct ApiClient: PlannerApi {
     let base: URL
 
     init() {

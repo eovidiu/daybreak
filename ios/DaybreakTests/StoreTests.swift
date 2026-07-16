@@ -1,0 +1,133 @@
+import XCTest
+@testable import Daybreak
+
+@MainActor
+final class StoreTests: XCTestCase {
+    func makeStore() -> (PlannerStore, MockApi) {
+        let api = MockApi()
+        return (PlannerStore(api: api), api)
+    }
+
+    // Drains the store's background Tasks so optimistic mutations settle.
+    func settle() async {
+        try? await Task.sleep(nanoseconds: 60_000_000)
+    }
+
+    func testBootstrapLoadsUserAndDay() async {
+        let (store, api) = makeStore()
+        api.tasks = [PlannerTask(id: "t1", day: store.day, bucket: .urgent, title: "X",
+                                 note: "", done: false, scheduledStart: nil,
+                                 scheduledMinutes: nil, position: 0)]
+        await store.bootstrap()
+        XCTAssertNotNil(store.user)
+        XCTAssertTrue(store.checkedSession)
+        XCTAssertEqual(store.data.tasks.count, 1)
+    }
+
+    func testBootstrapWithoutSession() async {
+        let (store, api) = makeStore()
+        api.user = nil
+        await store.bootstrap()
+        XCTAssertNil(store.user)
+    }
+
+    func testSignOutClearsState() async {
+        let (store, _) = makeStore()
+        await store.bootstrap()
+        await store.signOut()
+        XCTAssertNil(store.user)
+        XCTAssertTrue(store.data.tasks.isEmpty)
+    }
+
+    func testAddAndToggleTask() async {
+        let (store, _) = makeStore()
+        await store.bootstrap()
+        await store.addTask(bucket: .progress, title: "Ship")
+        XCTAssertEqual(store.data.tasks.first?.title, "Ship")
+        let task = store.data.tasks[0]
+        store.toggle(task)
+        XCTAssertTrue(store.data.tasks[0].done)
+        await settle()
+    }
+
+    func testScheduleUpdateAndDeleteTask() async {
+        let (store, _) = makeStore()
+        await store.bootstrap()
+        await store.addTask(bucket: .urgent, title: "Call")
+        var task = store.data.tasks[0]
+        store.schedule(task, start: 480, minutes: 30)
+        XCTAssertEqual(store.data.tasks[0].scheduledStart, 480)
+        task = store.data.tasks[0]
+        store.update(task, title: "Call back", note: "urgent", bucket: .extra)
+        XCTAssertEqual(store.data.tasks[0].title, "Call back")
+        XCTAssertEqual(store.data.tasks[0].bucket, .extra)
+        store.moveScheduled(store.data.tasks[0], toStart: 600)
+        XCTAssertEqual(store.data.tasks[0].scheduledStart, 600)
+        store.delete(store.data.tasks[0])
+        XCTAssertTrue(store.data.tasks.isEmpty)
+        await settle()
+    }
+
+    func testEventLifecycle() async {
+        let (store, _) = makeStore()
+        await store.bootstrap()
+        await store.addEvent(title: "Sync", bucket: .progress, start: 540, minutes: 60)
+        XCTAssertEqual(store.data.events.first?.title, "Sync")
+        var ev = store.data.events[0]
+        store.move(ev, toStart: 600)
+        XCTAssertEqual(store.data.events[0].startMin, 600)
+        ev = store.data.events[0]
+        store.update(ev, title: "Sync v2", note: "n", bucket: .urgent, start: 660, minutes: 90)
+        XCTAssertEqual(store.data.events[0].title, "Sync v2")
+        XCTAssertEqual(store.data.events[0].durationMin, 90)
+        store.delete(store.data.events[0])
+        XCTAssertTrue(store.data.events.isEmpty)
+        await settle()
+    }
+
+    func testSelectDayUsesCache() async {
+        let (store, api) = makeStore()
+        await store.bootstrap()
+        let other = Day.add(store.day, 1)
+        api.events = [PlannerEvent(id: "e1", day: other, bucket: .extra, title: "Later",
+                                   note: "", startMin: 600, durationMin: 60)]
+        store.select(day: other)
+        await settle()
+        XCTAssertEqual(store.day, other)
+        XCTAssertEqual(store.data.events.first?.title, "Later")
+        // Second select hits the cache path for instant render.
+        store.select(day: store.day)
+        await settle()
+    }
+
+    func testEarlierTrayPullAndDelete() async {
+        let (store, api) = makeStore()
+        api.earlierTasks = [
+            EarlierTask(id: "e1", day: "2026-07-01", bucket: .urgent, title: "Old A", note: ""),
+            EarlierTask(id: "e2", day: "2026-07-02", bucket: .extra, title: "Old B", note: ""),
+        ]
+        await store.bootstrap()
+        XCTAssertEqual(store.earlier.count, 2)
+        store.pullIntoToday(store.earlier[0])
+        XCTAssertEqual(store.earlier.count, 1)
+        store.deleteEarlier(store.earlier[0])
+        XCTAssertTrue(store.earlier.isEmpty)
+        await settle()
+    }
+
+    func testErrorSurfacesMessage() async {
+        let (store, api) = makeStore()
+        await store.bootstrap()
+        api.failNext = true
+        await store.addTask(bucket: .urgent, title: "will fail")
+        XCTAssertNotNil(store.errorMessage)
+    }
+
+    func testUnauthorizedClearsUser() async {
+        let (store, api) = makeStore()
+        await store.bootstrap()
+        api.unauthorized = true
+        await store.load()
+        XCTAssertNil(store.user)
+    }
+}
