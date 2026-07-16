@@ -144,7 +144,7 @@ function renderWeekStrip() {
     if (day === localToday()) chip.classList.add('isToday')
     chip.innerHTML = `<small>${d.toLocaleDateString(undefined, { weekday: 'short' })}</small>
       <strong>${d.getDate()}</strong>`
-    chip.onclick = () => { state.day = day; loadDay() }
+    chip.onclick = () => { state.day = day; scrollTimelineToMorning(); loadDay() }
     strip.appendChild(chip)
   }
 }
@@ -218,20 +218,26 @@ function renderEarlier() {
   }
 }
 
+const VIEW_START_MIN = 8 * 60
+
+function scrollTimelineToMorning() {
+  $('#timeline').scrollTop = VIEW_START_MIN * PX_PER_MIN
+}
+
 function renderTimeline() {
-  const tl = $('#timeline')
-  tl.innerHTML = ''
-  tl.style.height = `${(DAY_END_MIN - DAY_START_MIN) * PX_PER_MIN}px`
+  const canvas = $('#timelineCanvas')
+  canvas.innerHTML = ''
+  canvas.style.height = `${(DAY_END_MIN - DAY_START_MIN) * PX_PER_MIN}px`
   for (let min = DAY_START_MIN; min <= DAY_END_MIN; min += 60) {
     const row = document.createElement('div')
     row.className = 'hourRow'
     row.style.top = `${(min - DAY_START_MIN) * PX_PER_MIN}px`
     row.innerHTML = `<span>${fmtTime(min)}</span>`
-    tl.appendChild(row)
+    canvas.appendChild(row)
   }
-  for (const ev of state.events) tl.appendChild(slotItem(ev, false))
+  for (const ev of state.events) canvas.appendChild(slotItem(ev, false))
   for (const t of state.tasks.filter((t) => t.scheduled_start != null)) {
-    tl.appendChild(slotItem(t, true))
+    canvas.appendChild(slotItem(t, true))
   }
 }
 
@@ -447,7 +453,7 @@ function wireTimelineDrop() {
     tl.classList.remove('dropTarget')
     const id = e.dataTransfer.getData('text/task-id')
     if (!id) return
-    const y = e.clientY - tl.getBoundingClientRect().top
+    const y = e.clientY - $('#timelineCanvas').getBoundingClientRect().top
     const raw = DAY_START_MIN + y / PX_PER_MIN
     const snapped = Math.round(raw / 30) * 30
     await patchTask(id, { scheduled_start: snapped, scheduled_minutes: 60 })
@@ -463,6 +469,7 @@ async function boot() {
   }
   $('#auth').classList.add('hidden')
   $('#planner').classList.remove('hidden')
+  scrollTimelineToMorning()
   await loadDay()
 }
 
@@ -472,7 +479,11 @@ $('#signOut').onclick = async () => {
   await api('/api/auth/signout', { method: 'POST' })
   showAuth()
 }
-$('#todayBtn').onclick = () => { state.day = localToday(); loadDay() }
+$('#todayBtn').onclick = () => {
+  state.day = localToday()
+  scrollTimelineToMorning()
+  loadDay()
+}
 $('#addEvent').onclick = createEvent
 editor.addEventListener('close', handleEditorClose)
 document.querySelectorAll('.addTask').forEach((form) => {

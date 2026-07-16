@@ -9,38 +9,57 @@ struct TimelineSection: View {
     let onTapEvent: (PlannerEvent) -> Void
     let onTapTask: (PlannerTask) -> Void
 
+    private let viewStartMin = 8 * 60
+    private let viewHours = 12
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Timeline").font(.headline)
-            ZStack(alignment: .topLeading) {
-                HourGrid()
-                ForEach(store.data.events) { event in
-                    SlotBlock(
-                        title: event.title, bucket: event.bucket,
-                        start: event.startMin, minutes: event.durationMin,
-                        isTask: false, done: false,
-                        onTap: { onTapEvent(event) },
-                        onMove: { store.move(event, toStart: $0) }
-                    )
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    ZStack(alignment: .topLeading) {
+                        HourGrid()
+                        Color.clear.frame(width: 1, height: 1)
+                            .offset(y: CGFloat(viewStartMin) * pxPerMin)
+                            .id("morningAnchor")
+                        slotBlocks
+                    }
+                    .frame(height: CGFloat(dayEndMin - dayStartMin) * pxPerMin)
                 }
-                ForEach(store.data.tasks.filter { $0.scheduledStart != nil }) { task in
-                    SlotBlock(
-                        title: task.title, bucket: task.bucket,
-                        start: task.scheduledStart ?? 0,
-                        minutes: task.scheduledMinutes ?? 60,
-                        isTask: true, done: task.done,
-                        onTap: { onTapTask(task) },
-                        onMove: { store.moveScheduled(task, toStart: $0) }
-                    )
+                .frame(height: CGFloat(viewHours * 60) * pxPerMin)
+                .onAppear { proxy.scrollTo("morningAnchor", anchor: .top) }
+                .onChange(of: store.day) {
+                    proxy.scrollTo("morningAnchor", anchor: .top)
                 }
             }
-            .frame(height: CGFloat(dayEndMin - dayStartMin) * pxPerMin)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("timeline")
         }
         .padding(14)
         .background(Color(.secondarySystemGroupedBackground),
                     in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    @ViewBuilder private var slotBlocks: some View {
+        ForEach(store.data.events) { event in
+            SlotBlock(
+                title: event.title, bucket: event.bucket,
+                start: event.startMin, minutes: event.durationMin,
+                isTask: false, done: false,
+                onTap: { onTapEvent(event) },
+                onMove: { store.move(event, toStart: $0) }
+            )
+        }
+        ForEach(store.data.tasks.filter { $0.scheduledStart != nil }) { task in
+            SlotBlock(
+                title: task.title, bucket: task.bucket,
+                start: task.scheduledStart ?? 0,
+                minutes: task.scheduledMinutes ?? 60,
+                isTask: true, done: task.done,
+                onTap: { onTapTask(task) },
+                onMove: { store.moveScheduled(task, toStart: $0) }
+            )
+        }
     }
 }
 
