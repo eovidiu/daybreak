@@ -6,6 +6,7 @@ node_modules/
 docs/
 ios/build/
 ios/build-sim/
+ios/build-app/
 ios/*.xcodeproj
 xcuserdata/
 test-results/
