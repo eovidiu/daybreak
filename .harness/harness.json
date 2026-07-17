@@ -1,0 +1,15 @@
+{
+  "project": "daybreak",
+  "stack": "node",
+  "created": "2026-07-17T14:47:47Z",
+  "harness": "vv-harness",
+  "git_identity": {
+    "user_name": "Ovidiu Eftimie",
+    "user_email": "eovidiu@gmail.com",
+    "ssh_key": "~/.ssh/id_ed25519",
+    "ssh_host": "github.com",
+    "remote": "https://github.com/eovidiu/daybreak.git (HTTPS via gh token; SSH key present but agent identity was evicted)"
+  },
+  "team_structure": null,
+  "notes": "Dual-stack: web (Cloudflare Workers + Hono + Neon + vanilla JS, tests via vitest/playwright) and iOS (SwiftUI, tests via xcodebuild on simulator/device). init.sh runs the web vitest suite as the automated gate; iOS tests run separately through Xcode."
+}

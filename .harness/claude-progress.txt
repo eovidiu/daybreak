@@ -1,0 +1,10 @@
+# Claude Progress Log
+# Project: daybreak
+# Created: 2026-07-17T14:47:47Z
+
+## Session 1 - Initialization (adopting harness into an existing, shipped app)
+- Created .harness/ scaffolding
+- Stack: node (web vitest suite is the automated gate; iOS tests run via Xcode separately)
+- Git identity: Ovidiu Eftimie <eovidiu@gmail.com>; remote HTTPS (github.com/eovidiu/daybreak)
+- Installed quality-gate hooks + Node build hook + status line
+- Seeded backlog with F001: fix iOS field text color (white-on-white in Dark Mode)

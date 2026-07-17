@@ -13,3 +13,5 @@ test-results/
 playwright-report/
 e2e/coverage-report.txt
 coverage/
+
+.harness/SESSION_INCOMPLETE
