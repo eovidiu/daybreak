@@ -8,3 +8,14 @@
 - Git identity: Ovidiu Eftimie <eovidiu@gmail.com>; remote HTTPS (github.com/eovidiu/daybreak)
 - Installed quality-gate hooks + Node build hook + status line
 - Seeded backlog with F001: fix iOS field text color (white-on-white in Dark Mode)
+
+## Session 2 - 2026-07-17 (single-session)
+- Feature: F001 - pin iOS app to light appearance (fixes Dark-Mode white-on-white fields)
+- Status: complete (passing)
+- Tests: 21 passing (15 unit + 6 UI incl. new testAppStaysLightWhenSystemIsDark)
+- Coverage: 98.03% on the Daybreak.app target
+- Decisions: .preferredColorScheme(.light) at scene root + explicit Theme.ink on fields;
+  dark-mode test must run under 'simctl ui <sim> appearance dark' (launch-arg doesn't work)
+- Note: overnight Xcode update wiped the iOS sim runtime; re-downloaded (iPhone 17 Pro / iOS 26.5)
+- Next: optionally build+install the fixed clean app on the physical XR; no open features
+- Blockers: none
