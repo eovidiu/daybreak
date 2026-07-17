@@ -49,7 +49,4 @@ schemes:
         DaybreakUITests: [test]
         DaybreakTests: [test]
     test:
-      gatherCoverageData: true
-      coverageTargets:
-        - Daybreak
       targets: [DaybreakTests, DaybreakUITests]
