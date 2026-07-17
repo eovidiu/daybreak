@@ -4,8 +4,9 @@ Persistent record of architectural decisions, patterns, gotchas, and active cont
 Referenced in CLAUDE.md; load at session start.
 
 ## Active Context
-- Currently working on: harness adoption on an existing, shipped app
-- Next up: F001 — fix iOS field text color (white-on-white in Dark Mode)
+- Last completed: F001 — pinned iOS app to light (`.preferredColorScheme(.light)`) so
+  fields are legible in Dark Mode. Passing, 98.03% coverage, 21 tests.
+- Next up: no open features. Optionally build+install the fixed clean app on the XR.
 
 ## Cross-Cutting Concerns
 - Dual-stack:
@@ -37,7 +38,31 @@ Referenced in CLAUDE.md; load at session start.
 - Cloudflare Workers cap PBKDF2 at 100k iterations; wrangler dev doesn't enforce it
 - `URL.appending(path:)` percent-encodes `?` — breaks query strings on iOS
 - On-device XCUITest needs the phone screen awake
+- **Forcing Dark Mode in XCUITest**: the `-AppleInterfaceStyle Dark` launch argument
+  does NOT force the app dark on the iOS 26.5 simulator (silent false-green). Force it
+  at the simulator level: `xcrun simctl ui <sim> appearance dark`, then run the test on
+  that booted sim by id. The dark-mode test requires this precondition.
+- **The app hardcodes a light palette** (Theme sRGB colors don't adapt) and is now
+  pinned via `.preferredColorScheme(.light)`. It intentionally has NO Dark Mode.
+- **Xcode/OS updates wipe simulator runtimes** — `simctl list runtimes` can go empty
+  overnight; re-run `xcodebuild -downloadPlatform iOS` (~8.5GB) before iOS tests. The
+  available simulator after the 2026-07-17 update is iPhone 17 Pro / iOS 26.5.
+
+## Meta-Session 2026-07-17
+- Scope vs planned: F001 stayed within its 5-file scope; no expansions. Theme.swift was
+  in scope but needed no edit (Theme.ink already existed) — a harmless scope superset.
+- Discovered mid-work: the first test design was a false-green (launch-arg didn't force
+  dark). The RED check — deliberately running with the pin disabled — is what caught it.
+  Lesson: always execute the RED step; a test that passes before the fix is worthless.
+- Environment: an overnight Xcode/OS update wiped the iOS simulator runtime, forcing an
+  8.5GB re-download mid-feature. Not code-related; budget for it after system updates.
+- Pattern that worked: pin appearance at the scene root (not per-view) so sheets inherit.
 
 ## Meta-Patterns
 <!-- Cross-feature coordination insights. Populated by the retrospective step. -->
-- (none yet — first retrospective will populate this)
+- The spec gate earns its cost on "simple" visual bugs: F001 looked trivial ("fix the
+  color") but the gate's ASK surfaced the Form-background inverse trap and the
+  recolor-vs-pin ambiguity before any code was written. Run it even for one-line fixes.
+- For any test that depends on an environment mode (dark mode, locale, network state),
+  prove it RED by disabling the fix before trusting a GREEN — env-dependent tests are
+  the most common false-greens.

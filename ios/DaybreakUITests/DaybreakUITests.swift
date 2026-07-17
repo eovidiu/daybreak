@@ -252,4 +252,21 @@ final class DaybreakUITests: XCTestCase {
         XCTAssertTrue(app.buttons["authSubmit"].waitForExistence(timeout: 5),
                       "returned to auth screen")
     }
+
+    // Daybreak commits to a light "paper" look; it must render light even when the
+    // system is in Dark Mode, so field text never goes white-on-white.
+    //
+    // PRECONDITION: run with the host simulator in Dark appearance, e.g.
+    //   xcrun simctl ui <sim> appearance dark
+    // Under a dark simulator this is a true red/green: without the .preferredColorScheme
+    // pin the app follows the system (probe reports "appearance-dark" → this test fails);
+    // with the pin it stays light (probe reports "appearance-light" → passes).
+    func testAppStaysLightWhenSystemIsDark() {
+        XCTAssertTrue(
+            app.otherElements["appearance-light"].waitForExistence(timeout: 10),
+            "app should resolve to a light appearance even when the system is in Dark Mode")
+        XCTAssertFalse(
+            app.otherElements["appearance-dark"].exists,
+            "app must not render in dark appearance")
+    }
 }

@@ -17,6 +17,7 @@ struct TaskEditSheet: View {
             Form {
                 TextField("Title", text: $title)
                     .accessibilityIdentifier("editTitle")
+                    .foregroundStyle(Theme.ink)
                 Picker("Bucket", selection: $bucket) {
                     ForEach(Bucket.allCases) { Text($0.title).tag($0) }
                 }
@@ -31,6 +32,7 @@ struct TaskEditSheet: View {
                     TextField("Note", text: $note, axis: .vertical)
                         .lineLimit(3...6)
                         .accessibilityIdentifier("editNote")
+                        .foregroundStyle(Theme.ink)
                 }
                 Button("Delete task", role: .destructive) {
                     store.delete(task)
@@ -84,6 +86,7 @@ struct EventEditSheet: View {
             Form {
                 TextField("Title", text: $title)
                     .accessibilityIdentifier("editTitle")
+                    .foregroundStyle(Theme.ink)
                 Picker("Bucket", selection: $bucket) {
                     ForEach(Bucket.allCases) { Text($0.title).tag($0) }
                 }
@@ -92,6 +95,7 @@ struct EventEditSheet: View {
                     TextField("Note", text: $note, axis: .vertical)
                         .lineLimit(3...6)
                         .accessibilityIdentifier("editNote")
+                        .foregroundStyle(Theme.ink)
                 }
                 Button("Delete event", role: .destructive) {
                     store.delete(event)
@@ -139,6 +143,7 @@ struct NewEventSheet: View {
             Form {
                 TextField("Event title", text: $title)
                     .accessibilityIdentifier("newEventTitle")
+                    .foregroundStyle(Theme.ink)
                 Picker("Bucket", selection: $bucket) {
                     ForEach(Bucket.allCases) { Text($0.title).tag($0) }
                 }

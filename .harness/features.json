@@ -2,13 +2,14 @@
   "project": "daybreak",
   "created": "2026-07-17T14:47:47Z",
   "total_features": 1,
-  "passing": 0,
+  "passing": 1,
   "features": [
     {
       "id": "F001",
       "description": "Pin the iOS app to a light appearance via .preferredColorScheme(.light) at the RootView/WindowGroup root, so every screen, field, and SwiftUI Form renders in the intended light-paper palette regardless of the system Dark Mode setting. This fixes the white-on-white field text (TextField/SecureField previously used SwiftUI's adaptive .primary, which turned white in Dark Mode over the fixed light card backgrounds) and the inverse dark-Form-background problem in one change. Additionally set explicit .foregroundStyle(Theme.ink) on the field text as belt-and-suspenders.",
       "priority": 1,
-      "status": "pending",
+      "status": "passing",
+      "assigned_to": null,
       "scope": [
         "ios/Daybreak/DaybreakApp.swift",
         "ios/Daybreak/AuthView.swift",
@@ -17,13 +18,15 @@
         "ios/Daybreak/Theme.swift"
       ],
       "depends_on": [],
-      "assigned_to": null,
       "test_file": "ios/DaybreakUITests/DaybreakUITests.swift",
-      "coverage": null,
+      "coverage": "98.03% (Daybreak.app target, 21 tests)",
       "notes": "Verification: a new XCUITest launches the app under a forced Dark Mode simulator appearance (simctl ui <udid> appearance dark) and asserts the auth fields and add-task field remain present/interactive; existing 20 iOS tests (15 unit + 5 UI) still pass; manual visual sign-off that fields render dark-ink on light. No web files change. Theme.ink (0x333333) already exists (Theme.swift:8), so Theme.swift may need no edit (scope superset).",
       "correction_cycles": 0,
       "scope_expansions": [],
-      "approaches_tried": [],
+      "approaches_tried": [
+        "First attempt used an -AppleInterfaceStyle Dark launch argument to force the app dark in the UI test — this does NOT force dark on the iOS 26.5 simulator, producing a false-green (test passed even with the pin removed). Replaced with running the test on a simulator set to Dark appearance via 'xcrun simctl ui <sim> appearance dark', which gives a genuine red (pin off) / green (pin on).",
+        "Fix that worked: .preferredColorScheme(.light) at the WindowGroup root (propagates to sheets) + explicit .foregroundStyle(Theme.ink) on all fields as belt-and-suspenders."
+      ],
       "failure_reason": null,
       "discovered_via": null,
       "spec": {

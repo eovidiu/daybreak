@@ -113,6 +113,7 @@ struct BucketSection: View {
                 TextField("Add a task…", text: $newTitle)
                     .textFieldStyle(.plain)
                     .font(.system(size: 15, design: .serif))
+                    .foregroundStyle(Theme.ink)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("addTask-\(bucket.rawValue)")
                     .onSubmit(add)

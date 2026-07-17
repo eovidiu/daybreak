@@ -9,6 +9,7 @@ struct DaybreakApp: App {
             RootView()
                 .environmentObject(store)
                 .task { await store.bootstrap() }
+                .preferredColorScheme(.light)
         }
     }
 }
@@ -35,5 +36,19 @@ struct RootView: View {
         } message: {
             Text(store.errorMessage ?? "")
         }
+        .background(AppearanceProbe())
+    }
+}
+
+// Exposes the resolved color scheme to UI tests so they can assert the app stays
+// light even when the system is in Dark Mode.
+struct AppearanceProbe: View {
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        Color.clear
+            .frame(width: 1, height: 1)
+            .accessibilityElement()
+            .accessibilityIdentifier(scheme == .dark ? "appearance-dark" : "appearance-light")
     }
 }

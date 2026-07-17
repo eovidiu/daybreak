@@ -76,6 +76,8 @@ struct AuthView: View {
     private func field(_ input: some View, id: String) -> some View {
         input
             .font(.system(size: 16, design: .serif))
+            .foregroundStyle(Theme.ink)
+            .tint(Theme.ink)
             .padding(.vertical, 8)
             .overlay(alignment: .bottom) {
                 Rectangle().fill(Theme.hairline).frame(height: 1)
