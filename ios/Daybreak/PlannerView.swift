@@ -11,6 +11,7 @@ struct PlannerView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     WeekStrip()
+                    CaptureBar()
                     ForEach(Bucket.allCases) { bucket in
                         BucketSection(bucket: bucket) { editingTask = $0 }
                     }
@@ -22,6 +23,7 @@ struct PlannerView: View {
                 }
                 .padding(.horizontal)
             }
+            .scrollDismissesKeyboard(.immediately)
             .background(Theme.paper.ignoresSafeArea())
             .navigationTitle(store.day == Day.today()
                              ? "Today" : Day.label(store.day))
@@ -46,6 +48,54 @@ struct PlannerView: View {
             .sheet(item: $editingTask) { TaskEditSheet(task: $0) }
             .sheet(item: $editingEvent) { EventEditSheet(event: $0) }
             .sheet(isPresented: $addingEvent) { NewEventSheet() }
+        }
+    }
+}
+
+struct CaptureBar: View {
+    @EnvironmentObject var store: PlannerStore
+    @State private var text = ""
+    @State private var busy = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 16))
+                .foregroundStyle(Theme.urgent)
+            TextField("Capture anything — I’ll sort it", text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 15, design: .serif))
+                .foregroundStyle(Theme.ink)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .accessibilityIdentifier("captureField")
+                .onSubmit(submit)
+            if busy {
+                ProgressView().controlSize(.small)
+            } else if !text.isEmpty {
+                Button(action: submit) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(Theme.ink)
+                }
+                .accessibilityIdentifier("captureSubmit")
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
+        .shadow(color: Theme.ink.opacity(0.05), radius: 12, y: 4)
+    }
+
+    private func submit() {
+        let line = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !line.isEmpty, !busy else { return }
+        text = ""
+        busy = true
+        Task {
+            await store.capture(line)
+            busy = false
         }
     }
 }

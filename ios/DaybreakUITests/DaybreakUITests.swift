@@ -31,6 +31,10 @@ final class DaybreakUITests: XCTestCase {
     }
 
     func addTask(_ title: String, bucket: String) {
+        // Clear any keyboard left up by a previous add; otherwise keyboard avoidance can
+        // push the next field up under the nav bar, where a tap won't take focus. The
+        // planner dismisses the keyboard on scroll, so a swipe resigns it.
+        if app.keyboards.firstMatch.exists { app.swipeDown(velocity: .fast) }
         let field = app.textFields["addTask-\(bucket)"]
         scrollTo(field)
         field.tap()
@@ -211,6 +215,20 @@ final class DaybreakUITests: XCTestCase {
         app.switches["scheduledToggle"].switches.firstMatch.tap()
         app.buttons["saveItem"].tap()
         XCTAssertTrue(elem("task-Morning prep").waitForExistence(timeout: 5))
+    }
+
+    // Natural-language quick capture (F004): a typed line is classified and filed as a
+    // task. The on-device model isn't provisioned on the simulator, so this exercises the
+    // deterministic rule-based fallback ("call" -> Urgent, no date -> today).
+    func testQuickCaptureFilesATask() throws {
+        openPlanner()
+        let field = app.textFields["captureField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 8), "capture bar appears")
+        field.tap()
+        field.typeText("call the client")
+        app.buttons["captureSubmit"].tap()
+        XCTAssertTrue(elem("task-Call the client").waitForExistence(timeout: 8),
+                      "captured line becomes a task")
     }
 
     // Daybreak commits to a light "paper" look; it must render light even when the

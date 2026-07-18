@@ -44,7 +44,13 @@ final class MockApi: PlannerApi, @unchecked Sendable {
         return t
     }
 
-    func patchTask(_ id: String, _ patch: [String: Any?]) async throws { try guardOk() }
+    func patchTask(_ id: String, _ patch: [String: Any?]) async throws {
+        try guardOk()
+        guard let i = tasks.firstIndex(where: { $0.id == id }) else { return }
+        if let v = patch["scheduled_start"] { tasks[i].scheduledStart = v as? Int }
+        if let v = patch["scheduled_minutes"] { tasks[i].scheduledMinutes = v as? Int }
+        if let day = patch["day"] as? String { tasks[i].day = day }
+    }
     func deleteTask(_ id: String) async throws { try guardOk() }
 
     func createEvent(day: String, bucket: Bucket, title: String,
@@ -58,4 +64,10 @@ final class MockApi: PlannerApi, @unchecked Sendable {
 
     func patchEvent(_ id: String, _ patch: [String: Any?]) async throws { try guardOk() }
     func deleteEvent(_ id: String) async throws { try guardOk() }
+}
+
+// Emits a fixed classification so capture-flow tests are deterministic.
+struct StubClassifier: CaptureClassifier {
+    let result: Classification
+    func classify(_ text: String, today: String) async -> Classification { result }
 }

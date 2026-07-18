@@ -3,9 +3,11 @@ import SwiftUI
 @MainActor
 final class PlannerStore: ObservableObject {
     let api: PlannerApi
+    let classifier: CaptureClassifier
 
-    init(api: PlannerApi) {
+    init(api: PlannerApi, classifier: CaptureClassifier = Capture.makeClassifier()) {
         self.api = api
+        self.classifier = classifier
     }
 
     @Published var user: User?
@@ -69,6 +71,26 @@ final class PlannerStore: ObservableObject {
             let task = try await api.createTask(day: day, bucket: bucket, title: title)
             data.tasks.append(task)
             cache[day] = data
+        } catch {
+            report(error)
+        }
+    }
+
+    // Natural-language capture: classify the line, then create a task in the chosen
+    // bucket on the parsed day, scheduled if the classifier found a time. (Confidence
+    // gating lands in F005; here every capture becomes a task.)
+    func capture(_ text: String) async {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let c = await classifier.classify(trimmed, today: Day.today())
+        do {
+            let task = try await api.createTask(day: c.day, bucket: c.bucket,
+                                                title: c.cleanedTitle)
+            if let start = c.startMin {
+                try await api.patchTask(task.id, ["scheduled_start": start,
+                                                  "scheduled_minutes": c.durationMin])
+            }
+            await load()
         } catch {
             report(error)
         }

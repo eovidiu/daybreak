@@ -130,4 +130,64 @@ final class StoreTests: XCTestCase {
         await store.load()
         XCTAssertNil(store.user)
     }
+
+    // MARK: capture (F004)
+
+    private func captureStore(_ c: Classification) -> (PlannerStore, MockApi) {
+        let api = MockApi()
+        return (PlannerStore(api: api, classifier: StubClassifier(result: c)), api)
+    }
+
+    func testCaptureCreatesBucketedScheduledTask() async {
+        let (store, _) = captureStore(
+            Classification(bucket: .urgent, day: Day.today(), startMin: 900,
+                           durationMin: 30, cleanedTitle: "Call the dentist", confidence: 0.9))
+        await store.bootstrap()
+        await store.capture("call the dentist at 3pm for 30 min")
+        XCTAssertEqual(store.data.tasks.count, 1)
+        let t = store.data.tasks[0]
+        XCTAssertEqual(t.title, "Call the dentist")
+        XCTAssertEqual(t.bucket, .urgent)
+        XCTAssertEqual(t.scheduledStart, 900)
+        XCTAssertEqual(t.scheduledMinutes, 30)
+    }
+
+    func testCaptureLeavesUntimedTaskUnscheduled() async {
+        let (store, _) = captureStore(
+            Classification(bucket: .progress, day: Day.today(), startMin: nil,
+                           durationMin: nil, cleanedTitle: "Plan roadmap", confidence: 0.8))
+        await store.bootstrap()
+        await store.capture("plan the roadmap")
+        XCTAssertEqual(store.data.tasks.first?.title, "Plan roadmap")
+        XCTAssertNil(store.data.tasks.first?.scheduledStart)
+    }
+
+    func testCaptureForFutureDayPersistsButHidesFromToday() async {
+        let (store, api) = captureStore(
+            Classification(bucket: .urgent, day: Day.add(Day.today(), 1), startMin: nil,
+                           durationMin: nil, cleanedTitle: "Gym", confidence: 0.7))
+        await store.bootstrap()
+        await store.capture("gym tomorrow")
+        XCTAssertTrue(store.data.tasks.isEmpty)   // not in today's view
+        XCTAssertEqual(api.tasks.count, 1)        // but persisted for tomorrow
+    }
+
+    func testCaptureIgnoresBlankInput() async {
+        let (store, api) = captureStore(
+            Classification(bucket: .extra, day: Day.today(), startMin: nil,
+                           durationMin: nil, cleanedTitle: "x", confidence: 0.4))
+        await store.bootstrap()
+        await store.capture("   \n ")
+        XCTAssertTrue(api.tasks.isEmpty)
+    }
+
+    func testCaptureErrorSurfaces() async {
+        let (store, api) = captureStore(
+            Classification(bucket: .urgent, day: Day.today(), startMin: nil,
+                           durationMin: nil, cleanedTitle: "x", confidence: 0.9))
+        await store.bootstrap()
+        api.failNext = true
+        await store.capture("something")
+        XCTAssertNotNil(store.errorMessage)
+    }
 }
