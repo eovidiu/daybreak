@@ -253,6 +253,14 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(stillPending?.isEmpty ?? false)
     }
 
+    func testCaptureDeepLinkBumpsFocusRequest() {
+        let (store, _) = makeStore()
+        store.open(URL(string: "daybreak://capture")!)
+        XCTAssertEqual(store.captureFocusRequest, 1)
+        store.open(URL(string: "https://example.com")!)   // ignored
+        XCTAssertEqual(store.captureFocusRequest, 1)
+    }
+
     func testAuditHistoryPassesThrough() async {
         let (store, api) = makeStore()
         api.auditEntries = [

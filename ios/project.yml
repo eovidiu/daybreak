@@ -15,12 +15,42 @@ targets:
     platform: iOS
     deploymentTarget: "17.0"
     sources: [Daybreak]
+    dependencies:
+      - target: DaybreakWidget
+      - target: DaybreakShare
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.eovidiu.daybreak
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_CFBundleDisplayName: Daybreak
+        CODE_SIGN_ENTITLEMENTS: Daybreak/Daybreak.entitlements
+  DaybreakWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [DaybreakWidget]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.eovidiu.daybreak.widget
+        INFOPLIST_FILE: DaybreakWidget/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: Daybreak
+  DaybreakShare:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - DaybreakShare
+      - path: Daybreak/Models.swift
+      - path: Daybreak/LocalModels.swift
+      - path: Daybreak/SharedStore.swift
+      - path: Daybreak/SharedCapture.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.eovidiu.daybreak.share
+        INFOPLIST_FILE: DaybreakShare/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: Daybreak
+        CODE_SIGN_ENTITLEMENTS: DaybreakShare/DaybreakShare.entitlements
   DaybreakUITests:
     type: bundle.ui-testing
     platform: iOS

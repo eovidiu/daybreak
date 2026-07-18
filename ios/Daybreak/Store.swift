@@ -22,6 +22,12 @@ final class PlannerStore: ObservableObject {
     @Published var digest = Digest(top3: [], stuck: nil, smallWin: nil, todayEvents: [])
     @Published var errorMessage: String?
     @Published var dayLoadStamp = 0
+    @Published var captureFocusRequest = 0   // bumped when a deep link asks to capture
+
+    // Handles a URL the app was opened with (from the widget).
+    func open(_ url: URL) {
+        if DeepLink.parse(url) == .capture { captureFocusRequest += 1 }
+    }
 
     private var cache: [String: DayData] = [:]
 

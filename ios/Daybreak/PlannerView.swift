@@ -110,6 +110,7 @@ struct CaptureBar: View {
     @EnvironmentObject var store: PlannerStore
     @State private var text = ""
     @State private var busy = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         HStack(spacing: 10) {
@@ -122,6 +123,7 @@ struct CaptureBar: View {
                 .foregroundStyle(Theme.ink)
                 .autocorrectionDisabled()
                 .submitLabel(.done)
+                .focused($focused)
                 .accessibilityIdentifier("captureField")
                 .onSubmit(submit)
             if busy {
@@ -140,6 +142,7 @@ struct CaptureBar: View {
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.hairline))
         .shadow(color: Theme.ink.opacity(0.05), radius: 12, y: 4)
+        .onChange(of: store.captureFocusRequest) { _, _ in focused = true }
     }
 
     private func submit() {

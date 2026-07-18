@@ -6,7 +6,7 @@ struct DaybreakApp: App {
     @StateObject private var store: PlannerStore
 
     init() {
-        let container = Self.makeContainer()
+        let container = SharedStore.container()
         // App.init runs on the main thread; LocalStore/PlannerStore are @MainActor.
         let store = MainActor.assumeIsolated { () -> PlannerStore in
             let local = LocalStore(container: container)
@@ -19,24 +19,12 @@ struct DaybreakApp: App {
         _store = StateObject(wrappedValue: store)
     }
 
-    static func makeContainer() -> ModelContainer {
-        let schema = Schema([TaskEntity.self, EventEntity.self, CaptureItem.self,
-                             ReviewItem.self, AuditRecord.self])
-        do {
-            return try ModelContainer(for: schema)
-        } catch {
-            // If the on-disk store is incompatible, fall back to a fresh in-memory one
-            // rather than crashing on launch.
-            return try! ModelContainer(
-                for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        }
-    }
-
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(store)
                 .task { await store.bootstrap() }
+                .onOpenURL { store.open($0) }
                 .preferredColorScheme(.light)
         }
     }

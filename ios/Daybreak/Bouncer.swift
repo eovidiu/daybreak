@@ -1,22 +1,5 @@
 import Foundation
 
-// UI-facing view of a low-confidence capture queued for review.
-struct Review: Identifiable, Equatable {
-    let id: String
-    let title: String
-    let bucket: Bucket
-    let day: String
-    let start: Int?
-    let minutes: Int?
-    let confidence: Double
-}
-
-// Outcome of filing a capture: auto-filed as a task, or queued for review.
-enum CaptureResult: Equatable {
-    case filed(PlannerTask)
-    case queued(Review)
-}
-
 // The confidence gate: a capture auto-files when its confidence clears the threshold.
 enum Bouncer {
     static func autoFiles(confidence: Double, threshold: Double) -> Bool {
