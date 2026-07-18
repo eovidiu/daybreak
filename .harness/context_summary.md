@@ -8,15 +8,14 @@ Referenced in CLAUDE.md; load at session start.
   local-first (SwiftData, no account) and imports the AI features from secondBrainApp;
   web stays cloud-backed. Device↔web sync is deferred and tracked as F009 (needs-spec,
   do NOT implement). F004–F008 specify the 5 AI recommendations.
-- Last completed: **F005 — Bouncer** (confidence-gated auto-file + review queue).
-  `LocalStore.fileCapture` writes one AuditRecord per capture, then auto-files a task
-  (>= threshold) or queues a ReviewItem. `Bouncer.autoFiles` + `CaptureThreshold`
-  (UserDefaults, clamped 0.3–0.9, default 0.6). Review UI ("Needs a look" + ReviewSheet)
-  and a Settings threshold slider. Passing; full iOS suite green (8 UI + unit).
-- Before F005: **F004 — AI quick-capture** — two-tier `CaptureClassifier` (RuleBased +
-  FoundationModels iOS 26+) unified by `CaptureEngine`; capture bar in `PlannerView`.
-- Next up: **F006 — Daily digest** (pure `DigestService.digest(tasks:events:today:)`:
-  top-3 incomplete + one stuck + one small win). Deterministic; unit-tested.
+- Last completed: **F006 — Daily digest**. Pure `DigestService.digest(tasks:events:today:)`
+  → `Digest{top3, stuck, smallWin, todayEvents}`. Surfaced as a `DigestCard` on the Today
+  view; `PlannerStore` recomputes it in `load()` via `api.digest(today:)`. Passing (9 UI + unit).
+- Before F006: **F005 — Bouncer** (confidence-gated auto-file + review queue via
+  `LocalStore.fileCapture`); **F004 — AI quick-capture** (two-tier `CaptureClassifier`).
+- Next up: **F007 — Correction/audit loop** (learn from review edits; AuditRecord already
+  written per capture with an `auditRecordId` link on tasks). Then **F008 — widget + share
+  extension**. **F009 — device↔web sync** stays tracked/needs-spec (do NOT implement).
 
 ## Cross-Cutting Concerns
 - Dual-stack:
@@ -93,6 +92,10 @@ Referenced in CLAUDE.md; load at session start.
   counts as separate 0%-covered regions even when structurally unreachable (e.g.
   `scores[$0] ?? 0` where `scores` is always fully populated). These are why the classifier
   files sit at 90–94% despite 100% function-level coverage. Don't add fake tests to chase them.
+- **SourceKit "unable to type-check in reasonable time" ≠ build failure** — the live
+  editor's type-checker times out on the large `PlannerView` body well before the real
+  compiler does; `xcodebuild` compiles it fine. Only act on it if an actual `xcodebuild`
+  error appears. If it ever does, extract subviews (the body is already mostly small structs).
 - **UserDefaults.standard leaks across tests on the simulator** — it's process-wide AND
   persists between runs. A settings UI test that saved threshold 0.9 later broke unit
   capture tests that assumed the 0.6 default (0.7/0.8 captures queued instead of auto-filing).

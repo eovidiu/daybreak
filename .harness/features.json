@@ -2,7 +2,7 @@
   "project": "daybreak",
   "created": "2026-07-17T14:47:47Z",
   "total_features": 9,
-  "passing": 5,
+  "passing": 6,
   "features": [
     {
       "id": "F001",
@@ -163,7 +163,7 @@
       "id": "F006",
       "description": "Daily digest (top-3 + one stuck + one small win): pure DigestService.digest(tasks:events:today:)->Digest. Top-3 from INCOMPLETE tasks only, ordered (overdue<today<future) then (urgent<progress<extra) then position then id. stuck = at most one incomplete task with day<today (oldest). small win = at most one task with completedAt within last 3 days (most recent). todayEvents = events with day==today (unranked). nil stuck/win allowed. Deterministic; unit-tested over seeded data. Coverage >=95%.",
       "priority": 3,
-      "status": "pending",
+      "status": "passing",
       "scope": [
         "ios/Daybreak/",
         "ios/DaybreakTests/"
@@ -172,12 +172,16 @@
         "F003"
       ],
       "assigned_to": null,
-      "test_file": "ios/DaybreakTests/",
-      "coverage": null,
+      "test_file": "ios/DaybreakTests/DigestServiceTests.swift, ios/DaybreakTests/StoreTests.swift, ios/DaybreakUITests/DaybreakUITests.swift",
+      "coverage": "DigestService 98.5% (one miss is the unreachable invalid-date guard); surfaced via PlannerView DigestCard, wired in Store/LocalStore, all >95%",
       "notes": null,
       "correction_cycles": 0,
       "scope_expansions": [],
-      "approaches_tried": [],
+      "approaches_tried": [
+        "Pure DigestService.digest(tasks:events:today:) using tuple sort keys: top3 by (dayCategory, bucketRank, position, id); stuck = oldest overdue incomplete; smallWin = most recent completion within 3 days of midnight today; todayEvents unranked.",
+        "Added completedAt to the PlannerTask DTO (default nil so the memberwise init stays source-compatible) so the digest can compute recent wins.",
+        "Exposed digest(today:) as a computed data-layer query (like day()/earlier()) since the digest spans all days, not just the loaded one; PlannerStore recomputes it on load and a DigestCard surfaces it on the Today view."
+      ],
       "failure_reason": null,
       "discovered_via": null,
       "spec": {
