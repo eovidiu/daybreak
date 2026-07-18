@@ -8,16 +8,18 @@ Referenced in CLAUDE.md; load at session start.
   local-first (SwiftData, no account) and imports the AI features from secondBrainApp;
   web stays cloud-backed. Device↔web sync is deferred and tracked as F009 (needs-spec,
   do NOT implement). F004–F008 specify the 5 AI recommendations.
-- Last completed: **F007 — Correction/audit loop**. `LocalStore.patchTask` appends
-  `{field,old,new,at}` corrections to a task's linked AuditRecord when bucket/day/
-  scheduledStart change (title/note excluded; append-only). History sheet lists the audit
-  trail. Passing (10 UI + unit).
-- Before F007: **F006 — Daily digest** (`DigestService` + `DigestCard`); **F005 — Bouncer**
-  (`LocalStore.fileCapture` + review queue); **F004 — AI quick-capture** (`CaptureClassifier`).
-- Next up: **F008 — Widget + Share extension** (App Group shared SwiftData; widget
-  deep-links to the capture field; share extension writes a pending CaptureItem the app
-  classifies on next launch). New targets under `ios/DaybreakWidget/`, `ios/DaybreakShare/`.
+- Last completed: **F008 — Widget + Share extension**. App Group `SharedStore` (falls back
+  to the default store); capture is now a two-step `enqueueCapture`→`fileCapture(captureId:)`
+  pipeline so pending captures are drained on launch. Widget deep-links to `daybreak://capture`;
+  share extension writes a pending CaptureItem via `SharedCapture.enqueue`. Value-type DTOs
+  live in `Models.swift` so the share target stays lean. App + widget + share build/embed on
+  the sim. Passing.
+- **All 5 AI recommendations (F004–F008) are done.** F004 quick-capture, F005 Bouncer,
+  F006 digest, F007 correction loop, F008 widget/share.
 - **F009 — device↔web sync** stays tracked/needs-spec (do NOT implement).
+- **iOS provisioning note**: extension App Group data sharing needs the group + extension
+  bundle IDs added to the provisioning profile (Apple Developer portal) before a device
+  build. The sim build uses ad-hoc signing and the App Group container falls back cleanly.
 
 ## Cross-Cutting Concerns
 - Dual-stack:

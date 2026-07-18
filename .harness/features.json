@@ -2,7 +2,7 @@
   "project": "daybreak",
   "created": "2026-07-17T14:47:47Z",
   "total_features": 9,
-  "passing": 7,
+  "passing": 8,
   "features": [
     {
       "id": "F001",
@@ -229,7 +229,7 @@
       "id": "F008",
       "description": "Home-screen Widget + Share extension capture: App Group shared SwiftData container. Widget deep-links to the capture field (no in-widget entry; widget captures are source=typed). Share extension writes a raw CaptureItem(status=pending, source=share) and returns without classifying; the main app classifies pending captures via the F004/F005 pipeline on next launch. Coverage applies to shared classify/capture logic, not the extension UI shell.",
       "priority": 5,
-      "status": "pending",
+      "status": "passing",
       "scope": [
         "ios/DaybreakWidget/",
         "ios/DaybreakShare/",
@@ -241,12 +241,17 @@
         "F004"
       ],
       "assigned_to": null,
-      "test_file": null,
-      "coverage": null,
-      "notes": null,
+      "test_file": "ios/DaybreakTests/SharedCaptureTests.swift, ios/DaybreakTests/DeepLinkTests.swift, ios/DaybreakTests/LocalStoreTests.swift, ios/DaybreakTests/StoreTests.swift",
+      "coverage": "Shared logic tested: SharedCapture.enqueue, drain-on-launch, deep link, captureId pipeline (DeepLink 100%, SharedCapture/Store/LocalStore >95%). Extension UI shells excluded per spec; app+widget+share build and embed on the simulator.",
+      "notes": "Extension targets build+embed on the iOS 26.5 simulator with ad-hoc signing. App Group data sharing on a physical device requires the group and extension bundle IDs to be added to the provisioning profile in the Apple Developer portal (cannot be done from this environment).",
       "correction_cycles": 0,
       "scope_expansions": [],
-      "approaches_tried": [],
+      "approaches_tried": [
+        "App Group SwiftData container (SharedStore) with a graceful fallback to the default store when the group is unavailable, so builds never break without the entitlement provisioned.",
+        "Widget is a static StaticConfiguration that deep-links to daybreak://capture (no in-widget entry); the app handles the URL by bumping a focus signal the CaptureBar observes.",
+        "Share extension (ShareViewController) extracts shared text/URL and calls SharedCapture.enqueue to write a pending CaptureItem(source=share); the app drains pending captures through the F004/F005 pipeline on bootstrap.",
+        "Split value-type DTOs into Models.swift so the share extension compiles a lean, self-contained source set (Models + entities + SharedStore + SharedCapture) without pulling in the app or a second @main."
+      ],
       "failure_reason": null,
       "discovered_via": null,
       "spec": {
