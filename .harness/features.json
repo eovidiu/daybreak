@@ -1,7 +1,7 @@
 {
   "project": "daybreak",
   "created": "2026-07-17T14:47:47Z",
-  "total_features": 2,
+  "total_features": 9,
   "passing": 2,
   "features": [
     {
@@ -55,6 +55,202 @@
       "approaches_tried": [
         "Rendered icon design via headless browser at exact 1024x1024; first composition had rays hidden behind the horizon band, fixed layering (rays behind sun, ground clips sun bottom)."
       ],
+      "failure_reason": null,
+      "discovered_via": null,
+      "spec": null
+    },
+    {
+      "id": "F003",
+      "description": "On-device data layer (foundational): add LocalStore conforming to PlannerApi, backed by SwiftData, and wire PlannerStore to use it on iOS instead of the cloud ApiClient. Auth is local: me() returns a fixed User(id:'local',email:'',name:'You'); signIn/signUp/signOut are no-ops. @Model entities: TaskEntity (mirrors PlannerTask + completedAt:Date?, updatedAt:Date, auditRecordId:UUID?), EventEntity, CaptureItem(id,text,source[typed|share],status[pending|classified|filed|reviewed],createdAt), ReviewItem(id,captureId,cleanedTitle,suggestedBucket,suggestedDay,suggestedStart:Int?,suggestedMinutes:Int?,confidence:Double,auditRecordId:UUID,createdAt), AuditRecord(id,captureId,rawInput,chosenBucket,confidence:Double,autoFiled:Bool,modelTier[foundationModels|ruleBased],createdAt,correctionsJSON:String). Device starts empty (no cloud migration; sync deferred to F009). Keep existing mock-based Store tests; add SwiftData CRUD/persistence tests. All planner flows work offline; data persists across relaunch; coverage >=95%.",
+      "priority": 1,
+      "status": "pending",
+      "scope": [
+        "ios/Daybreak/",
+        "ios/project.yml",
+        "ios/DaybreakTests/"
+      ],
+      "depends_on": [],
+      "assigned_to": null,
+      "test_file": "ios/DaybreakTests/",
+      "coverage": null,
+      "notes": "Foundational: the PlannerApi protocol is the seam \u2014 LocalStore swaps in for ApiClient without touching Store/views. Discovered while analyzing the local-first pivot.",
+      "correction_cycles": 0,
+      "scope_expansions": [],
+      "approaches_tried": [],
+      "failure_reason": null,
+      "discovered_via": null,
+      "spec": {
+        "hash": "ec49ee02fdf1eaf088af7e831b85cc77611f896b2dbaff3976e0a79d38d467d9",
+        "verdict": "PASS",
+        "sv_version": "1.0",
+        "verified_at": "2026-07-18T10:25:03Z",
+        "source": "conversation"
+      }
+    },
+    {
+      "id": "F004",
+      "description": "AI quick-capture (natural language -> bucketed, scheduled task): CaptureClassifier protocol returning {bucket,day,startMin?,durationMin?,cleanedTitle,confidence}. Two tiers: FoundationModels (@Generable, iOS 26+) and a deterministic RuleBased fallback (iOS<26 / unavailable). RuleBased: whole-token case-insensitive keyword map [urgent/progress/extra], score=count of matches, confidence=clamp(0.30..0.95, 0.5+0.45*(top-second)/max(top,1)), zero matches->extra@0.40, ties broken by priority urgent>progress>extra. Date/time parser (device-local): today/tomorrow/tonight/'in N days'/bare weekday=next future/'next <weekday>'=+7d/bare times/durations/no-time->unscheduled. A capture becomes a TaskEntity in the chosen bucket, scheduled if timed. FoundationModels tested for decode+range+fallback (not exact values); classifier injectable. Coverage >=95%.",
+      "priority": 2,
+      "status": "pending",
+      "scope": [
+        "ios/Daybreak/",
+        "ios/DaybreakTests/"
+      ],
+      "depends_on": [
+        "F003"
+      ],
+      "assigned_to": null,
+      "test_file": "ios/DaybreakTests/",
+      "coverage": null,
+      "notes": "Bucket output is a deterministic total function (tie-break urgent>progress>extra); spec gate PASS.",
+      "correction_cycles": 0,
+      "scope_expansions": [],
+      "approaches_tried": [],
+      "failure_reason": null,
+      "discovered_via": null,
+      "spec": {
+        "hash": "44ce57a215ec2cffaa92018d97998052a78c32d67df620c84e40c341a6ffaf91",
+        "verdict": "PASS",
+        "sv_version": "1.0",
+        "verified_at": "2026-07-18T10:25:21Z",
+        "source": "conversation"
+      }
+    },
+    {
+      "id": "F005",
+      "description": "Confidence-gated auto-filing (Bouncer) + review queue: threshold default 0.6 (0.3-0.9, Settings/UserDefaults). Every classification writes one AuditRecord at classification time. confidence>=threshold: create TaskEntity (autoFiled=true) with auditRecordId set. confidence<threshold: create ReviewItem (auditRecordId set), NO task. Review UI: Accept creates the task from suggested (possibly edited) values; Dismiss discards; un-actioned ReviewItems persist. Unit-tested with a stub classifier emitting known confidences. Coverage >=95%.",
+      "priority": 3,
+      "status": "pending",
+      "scope": [
+        "ios/Daybreak/",
+        "ios/DaybreakTests/"
+      ],
+      "depends_on": [
+        "F004"
+      ],
+      "assigned_to": null,
+      "test_file": "ios/DaybreakTests/",
+      "coverage": null,
+      "notes": null,
+      "correction_cycles": 0,
+      "scope_expansions": [],
+      "approaches_tried": [],
+      "failure_reason": null,
+      "discovered_via": null,
+      "spec": {
+        "hash": "5aad028bae28042b37db87d096cf4d248dd33ecfb0ee24dfb782468cfbbd5511",
+        "verdict": "PASS",
+        "sv_version": "1.0",
+        "verified_at": "2026-07-18T10:25:03Z",
+        "source": "conversation"
+      }
+    },
+    {
+      "id": "F006",
+      "description": "Daily digest (top-3 + one stuck + one small win): pure DigestService.digest(tasks:events:today:)->Digest. Top-3 from INCOMPLETE tasks only, ordered (overdue<today<future) then (urgent<progress<extra) then position then id. stuck = at most one incomplete task with day<today (oldest). small win = at most one task with completedAt within last 3 days (most recent). todayEvents = events with day==today (unranked). nil stuck/win allowed. Deterministic; unit-tested over seeded data. Coverage >=95%.",
+      "priority": 3,
+      "status": "pending",
+      "scope": [
+        "ios/Daybreak/",
+        "ios/DaybreakTests/"
+      ],
+      "depends_on": [
+        "F003"
+      ],
+      "assigned_to": null,
+      "test_file": "ios/DaybreakTests/",
+      "coverage": null,
+      "notes": null,
+      "correction_cycles": 0,
+      "scope_expansions": [],
+      "approaches_tried": [],
+      "failure_reason": null,
+      "discovered_via": null,
+      "spec": {
+        "hash": "18c335bb8f804c559f28816aae777c03581f4ed6cfa2b0ee2fa43fc785d19d22",
+        "verdict": "PASS",
+        "sv_version": "1.0",
+        "verified_at": "2026-07-18T10:25:03Z",
+        "source": "conversation"
+      }
+    },
+    {
+      "id": "F007",
+      "description": "Correction / audit loop: each classification writes exactly one immutable AuditRecord (captureId,rawInput,chosenBucket,confidence,autoFiled,modelTier,createdAt). A correction = a change to bucket OR schedule(day/scheduledStart) on a task with auditRecordId!=nil, appended {field,old,new,at} to correctionsJSON; title/note edits excluded; records append-only. History view lists records. Learning/behavior-change out of scope (signal capture only). Unit-tested. Coverage >=95%.",
+      "priority": 4,
+      "status": "pending",
+      "scope": [
+        "ios/Daybreak/",
+        "ios/DaybreakTests/"
+      ],
+      "depends_on": [
+        "F004"
+      ],
+      "assigned_to": null,
+      "test_file": "ios/DaybreakTests/",
+      "coverage": null,
+      "notes": null,
+      "correction_cycles": 0,
+      "scope_expansions": [],
+      "approaches_tried": [],
+      "failure_reason": null,
+      "discovered_via": null,
+      "spec": {
+        "hash": "2883e534c4618e6c7142f05624ed34d750ef7ba7224e3d836d9c076b37139fed",
+        "verdict": "PASS",
+        "sv_version": "1.0",
+        "verified_at": "2026-07-18T10:25:03Z",
+        "source": "conversation"
+      }
+    },
+    {
+      "id": "F008",
+      "description": "Home-screen Widget + Share extension capture: App Group shared SwiftData container. Widget deep-links to the capture field (no in-widget entry; widget captures are source=typed). Share extension writes a raw CaptureItem(status=pending, source=share) and returns without classifying; the main app classifies pending captures via the F004/F005 pipeline on next launch. Coverage applies to shared classify/capture logic, not the extension UI shell.",
+      "priority": 5,
+      "status": "pending",
+      "scope": [
+        "ios/DaybreakWidget/",
+        "ios/DaybreakShare/",
+        "ios/project.yml",
+        "ios/Daybreak/"
+      ],
+      "depends_on": [
+        "F003",
+        "F004"
+      ],
+      "assigned_to": null,
+      "test_file": null,
+      "coverage": null,
+      "notes": null,
+      "correction_cycles": 0,
+      "scope_expansions": [],
+      "approaches_tried": [],
+      "failure_reason": null,
+      "discovered_via": null,
+      "spec": {
+        "hash": "af50e729800f5560782a296d540aad25aa290c548c5c579c692ebd8565eb5599",
+        "verdict": "PASS",
+        "sv_version": "1.0",
+        "verified_at": "2026-07-18T10:25:03Z",
+        "source": "conversation"
+      }
+    },
+    {
+      "id": "F009",
+      "description": "Device <-> web sync: let the iOS local-first data optionally sync with the cloud web backend (map a device to a web account, push/pull tasks/events, resolve conflicts). NEEDS SPECIFICATION before implementation \u2014 deliberately not spec'd yet. Deferred epic that unblocks cross-device continuity between the iOS (local) and web (cloud) versions.",
+      "priority": 9,
+      "status": "pending",
+      "scope": [
+        "(to be determined)"
+      ],
+      "depends_on": [],
+      "assigned_to": null,
+      "test_file": null,
+      "coverage": null,
+      "notes": "TRACKED, NEEDS SPECIFICATION. Do not implement until spec'd via the spec gate. Depends conceptually on F003 (local store) + the web backend.",
+      "correction_cycles": 0,
+      "scope_expansions": [],
+      "approaches_tried": [],
       "failure_reason": null,
       "discovered_via": null,
       "spec": null
