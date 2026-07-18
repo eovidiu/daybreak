@@ -2,7 +2,7 @@
   "project": "daybreak",
   "created": "2026-07-17T14:47:47Z",
   "total_features": 9,
-  "passing": 6,
+  "passing": 7,
   "features": [
     {
       "id": "F001",
@@ -196,7 +196,7 @@
       "id": "F007",
       "description": "Correction / audit loop: each classification writes exactly one immutable AuditRecord (captureId,rawInput,chosenBucket,confidence,autoFiled,modelTier,createdAt). A correction = a change to bucket OR schedule(day/scheduledStart) on a task with auditRecordId!=nil, appended {field,old,new,at} to correctionsJSON; title/note edits excluded; records append-only. History view lists records. Learning/behavior-change out of scope (signal capture only). Unit-tested. Coverage >=95%.",
       "priority": 4,
-      "status": "pending",
+      "status": "passing",
       "scope": [
         "ios/Daybreak/",
         "ios/DaybreakTests/"
@@ -205,12 +205,16 @@
         "F004"
       ],
       "assigned_to": null,
-      "test_file": "ios/DaybreakTests/",
-      "coverage": null,
+      "test_file": "ios/DaybreakTests/LocalStoreTests.swift, ios/DaybreakTests/StoreTests.swift, ios/DaybreakUITests/DaybreakUITests.swift",
+      "coverage": "Audit 100% / LocalStore 95.5%+ (correction logging + auditHistory); History UI covered by UI test; all >95%",
       "notes": null,
       "correction_cycles": 0,
       "scope_expansions": [],
-      "approaches_tried": [],
+      "approaches_tried": [
+        "Correction detection lives in LocalStore.patchTask: before applying the patch, for a task with auditRecordId!=nil it appends {field,old,new,at} to the linked AuditRecord.correctionsJSON for each of bucket/day/scheduledStart that actually changes (title/note excluded; no-op changes skipped; append-only).",
+        "CorrectionLog (JSON, ISO8601 dates) serializes the log; AuditEntry is the UI-facing view; auditHistory() sorts records newest-first.",
+        "History sheet (menu) lists each capture with its filing decision and corrections; verified end-to-end by scheduling an audited capture and reading it back from History."
+      ],
       "failure_reason": null,
       "discovered_via": null,
       "spec": {

@@ -8,14 +8,16 @@ Referenced in CLAUDE.md; load at session start.
   local-first (SwiftData, no account) and imports the AI features from secondBrainApp;
   web stays cloud-backed. Device↔web sync is deferred and tracked as F009 (needs-spec,
   do NOT implement). F004–F008 specify the 5 AI recommendations.
-- Last completed: **F006 — Daily digest**. Pure `DigestService.digest(tasks:events:today:)`
-  → `Digest{top3, stuck, smallWin, todayEvents}`. Surfaced as a `DigestCard` on the Today
-  view; `PlannerStore` recomputes it in `load()` via `api.digest(today:)`. Passing (9 UI + unit).
-- Before F006: **F005 — Bouncer** (confidence-gated auto-file + review queue via
-  `LocalStore.fileCapture`); **F004 — AI quick-capture** (two-tier `CaptureClassifier`).
-- Next up: **F007 — Correction/audit loop** (learn from review edits; AuditRecord already
-  written per capture with an `auditRecordId` link on tasks). Then **F008 — widget + share
-  extension**. **F009 — device↔web sync** stays tracked/needs-spec (do NOT implement).
+- Last completed: **F007 — Correction/audit loop**. `LocalStore.patchTask` appends
+  `{field,old,new,at}` corrections to a task's linked AuditRecord when bucket/day/
+  scheduledStart change (title/note excluded; append-only). History sheet lists the audit
+  trail. Passing (10 UI + unit).
+- Before F007: **F006 — Daily digest** (`DigestService` + `DigestCard`); **F005 — Bouncer**
+  (`LocalStore.fileCapture` + review queue); **F004 — AI quick-capture** (`CaptureClassifier`).
+- Next up: **F008 — Widget + Share extension** (App Group shared SwiftData; widget
+  deep-links to the capture field; share extension writes a pending CaptureItem the app
+  classifies on next launch). New targets under `ios/DaybreakWidget/`, `ios/DaybreakShare/`.
+- **F009 — device↔web sync** stays tracked/needs-spec (do NOT implement).
 
 ## Cross-Cutting Concerns
 - Dual-stack:
