@@ -2,7 +2,7 @@
   "project": "daybreak",
   "created": "2026-07-17T14:47:47Z",
   "total_features": 9,
-  "passing": 2,
+  "passing": 3,
   "features": [
     {
       "id": "F001",
@@ -63,7 +63,7 @@
       "id": "F003",
       "description": "On-device data layer (foundational): add LocalStore conforming to PlannerApi, backed by SwiftData, and wire PlannerStore to use it on iOS instead of the cloud ApiClient. Auth is local: me() returns a fixed User(id:'local',email:'',name:'You'); signIn/signUp/signOut are no-ops. @Model entities: TaskEntity (mirrors PlannerTask + completedAt:Date?, updatedAt:Date, auditRecordId:UUID?), EventEntity, CaptureItem(id,text,source[typed|share],status[pending|classified|filed|reviewed],createdAt), ReviewItem(id,captureId,cleanedTitle,suggestedBucket,suggestedDay,suggestedStart:Int?,suggestedMinutes:Int?,confidence:Double,auditRecordId:UUID,createdAt), AuditRecord(id,captureId,rawInput,chosenBucket,confidence:Double,autoFiled:Bool,modelTier[foundationModels|ruleBased],createdAt,correctionsJSON:String). Device starts empty (no cloud migration; sync deferred to F009). Keep existing mock-based Store tests; add SwiftData CRUD/persistence tests. All planner flows work offline; data persists across relaunch; coverage >=95%.",
       "priority": 1,
-      "status": "pending",
+      "status": "passing",
       "scope": [
         "ios/Daybreak/",
         "ios/project.yml",
@@ -71,12 +71,17 @@
       ],
       "depends_on": [],
       "assigned_to": null,
-      "test_file": "ios/DaybreakTests/",
-      "coverage": null,
-      "notes": "Foundational: the PlannerApi protocol is the seam \u2014 LocalStore swaps in for ApiClient without touching Store/views. Discovered while analyzing the local-first pivot.",
+      "test_file": "ios/DaybreakTests/LocalStoreTests.swift",
+      "coverage": "97.58% (Daybreak.app target, 32 tests)",
+      "notes": "Local-first pivot: iOS persists to SwiftData, opens straight to the planner (no auth). UI tests use a UITEST_RESET launch flag for isolation.",
       "correction_cycles": 0,
       "scope_expansions": [],
-      "approaches_tried": [],
+      "approaches_tried": [
+        "SwiftData #Predicate with captured vars crashes at fetch -> fetch-all-and-filter in Swift.",
+        "Many ModelContainers/process crashes -> one shared in-memory container per test class, wiped per test.",
+        "Capturing container.mainContext at construction then using it later traps (Core Data thread confinement) -> PlannerApi @MainActor + access mainContext lazily inside methods.",
+        "Deleted the dead cloud ApiClient (LocalStore replaces it) and AuthView (no login in local-first) rather than carry uncovered dead code."
+      ],
       "failure_reason": null,
       "discovered_via": null,
       "spec": {

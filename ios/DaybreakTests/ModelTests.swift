@@ -44,8 +44,4 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(event.durationMin, 90)
     }
 
-    func testApiClientReadsEnvironmentBase() {
-        let client = ApiClient()
-        XCTAssertEqual(client.base.scheme, "https")
-    }
 }

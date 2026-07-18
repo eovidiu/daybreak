@@ -5,11 +5,15 @@ import SwiftData
 // ApiClient on iOS. Auth is a no-op — there is a single implicit local user.
 @MainActor
 final class LocalStore: PlannerApi {
-    private let context: ModelContext
+    private let container: ModelContainer
 
     init(container: ModelContainer) {
-        self.context = container.mainContext
+        self.container = container
     }
+
+    // Access the main context lazily inside @MainActor methods so it is first
+    // materialized on the real main actor, not wherever the store was constructed.
+    private var context: ModelContext { container.mainContext }
 
     // MARK: auth (local, no account)
 

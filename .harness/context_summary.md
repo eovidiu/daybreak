@@ -33,11 +33,20 @@ Referenced in CLAUDE.md; load at session start.
 - iOS Store's API is injectable behind `PlannerApi` so unit tests drive a mock
 
 ### Gotchas
-- **SwiftData: two crash traps hit building F003's LocalStore** — (1) `#Predicate` with a
+- **SwiftData: three crash traps hit building F003's LocalStore** — (1) `#Predicate` with a
   captured variable (e.g. `#Predicate { $0.day == day }`) crashes at fetch on iOS 26.5;
   fetch-all-and-filter in Swift instead (local data is small). (2) Creating MANY
   `ModelContainer`s in one process crashes after the first 1-2; use ONE shared in-memory
-  container across a test class and wipe it per test (`context.delete(model:)`).
+  container across a test class and wipe it per test (`context.delete(model:)`). (3) A
+  `ModelContext` traps (Core Data thread-confinement, EXC_BREAKPOINT) if captured at
+  construction on one execution context and used later on another — the classic symptom
+  was a bare `context.fetch()` crashing only in the app (via the protocol) but not in
+  direct-call unit tests. Fix: make the store protocol `@MainActor` AND access
+  `container.mainContext` LAZILY inside the `@MainActor` methods (don't stash it in init).
+- **Local-first pivot (F003)**: iOS no longer uses the cloud API — the `PlannerApi` seam
+  now has a SwiftData `LocalStore`; the cloud `ApiClient` and `AuthView` were DELETED
+  (replaced, not deprecated). The app opens straight to the planner. `load()` must fetch
+  the day and earlier tray SEQUENTIALLY (not `async let`) — one shared context.
 - **iOS coverage-instrumented builds do not launch standalone** — never install a
   build made with coverage on as the shippable app (see [[swiftui-xcuitest-gotchas]])
 - Cloudflare Workers cap PBKDF2 at 100k iterations; wrangler dev doesn't enforce it

@@ -6,6 +6,7 @@ final class DaybreakUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchArguments += ["UITEST_RESET"]  // start each test with an empty local store
         app.launch()
     }
 
@@ -23,34 +24,10 @@ final class DaybreakUITests: XCTestCase {
         }
     }
 
-    func signOutIfNeeded() {
-        let menu = app.buttons["menuButton"]
-        if menu.waitForExistence(timeout: 3) {
-            menu.tap()
-            app.buttons["Sign out"].tap()
-        }
-    }
-
-    func signUpFreshAccount() -> String {
-        let stamp = Int(Date().timeIntervalSince1970)
-        let email = "ios-uitest-\(stamp)@daybreak.test"
-
-        signOutIfNeeded()
-        let toggle = app.buttons["authToggle"]
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        toggle.tap()  // switch to signup
-
-        let name = app.textFields["nameField"]
-        name.tap(); name.typeText("UITest")
-        let emailField = app.textFields["emailField"]
-        emailField.tap(); emailField.typeText(email)
-        let pass = app.secureTextFields["passwordField"]
-        pass.tap(); pass.typeText("uitest-pass-1")
-        app.buttons["authSubmit"].tap()
-
+    // Local-first: the app opens directly to the planner (no account/auth).
+    func openPlanner() {
         XCTAssertTrue(app.buttons["menuButton"].waitForExistence(timeout: 10),
-                      "planner should appear after signup")
-        return email
+                      "planner should appear on launch")
     }
 
     func addTask(_ title: String, bucket: String) {
@@ -64,7 +41,7 @@ final class DaybreakUITests: XCTestCase {
     }
 
     func testFullPlannerFlow() throws {
-        _ = signUpFreshAccount()
+        openPlanner()
 
         // 1. Add one task per bucket
         addTask("Pay invoice", bucket: "urgent")
@@ -111,15 +88,15 @@ final class DaybreakUITests: XCTestCase {
         app.buttons["saveItem"].tap()
         XCTAssertTrue(elem("slot-Team sync").waitForExistence(timeout: 5))
 
-        // 7. Persistence: sign out, sign back in via the same account is covered by
-        //    testSessionPersistence; here verify state survives a relaunch (cookie).
+        // 7. Persistence: relaunch WITHOUT the reset flag; local data survives.
         app.terminate()
+        app.launchArguments = app.launchArguments.filter { $0 != "UITEST_RESET" }
         app.launch()
         XCTAssertTrue(app.buttons["menuButton"].waitForExistence(timeout: 10),
-                      "session cookie should survive relaunch")
+                      "planner should reappear on relaunch")
         let persisted = elem("task-Pay invoice")
         scrollTo(persisted)
-        XCTAssertTrue(persisted.waitForExistence(timeout: 5), "tasks persist")
+        XCTAssertTrue(persisted.waitForExistence(timeout: 5), "tasks persist locally")
 
         // 8. Delete the event
         let slotAgain = elem("slot-Team sync")
@@ -148,22 +125,10 @@ final class DaybreakUITests: XCTestCase {
         XCTAssertTrue(back.waitForExistence(timeout: 5), "back on today")
     }
 
-    func testSignInWrongPasswordShowsError() throws {
-        signOutIfNeeded()
-        let emailField = app.textFields["emailField"]
-        XCTAssertTrue(emailField.waitForExistence(timeout: 5))
-        emailField.tap(); emailField.typeText("smoke@daybreak.test")
-        let pass = app.secureTextFields["passwordField"]
-        pass.tap(); pass.typeText("definitely-wrong")
-        app.buttons["authSubmit"].tap()
-        XCTAssertTrue(app.staticTexts["authError"].waitForExistence(timeout: 8),
-                      "wrong credentials show an error")
-    }
-
     // Exercises the earlier tray: a task left on a past day surfaces on today,
     // can be pulled forward, and another can be dropped.
     func testEarlierTrayAndDayNavigation() throws {
-        _ = signUpFreshAccount()
+        openPlanner()
 
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy-MM-dd"
@@ -187,7 +152,7 @@ final class DaybreakUITests: XCTestCase {
 
     // Exercises the timeline long-press drag (SlotBlock.onEnded) and deletion.
     func testTimelineDragAndDelete() throws {
-        _ = signUpFreshAccount()
+        openPlanner()
 
         app.buttons["menuButton"].tap()
         app.buttons["Add event"].tap()
@@ -222,9 +187,9 @@ final class DaybreakUITests: XCTestCase {
         XCTAssertFalse(elem("slot-Standup").waitForExistence(timeout: 3))
     }
 
-    // A pre-8am event opens the timeline scrolled to it; also covers unschedule + sign out.
-    func testEarlyEventScrollUnscheduleAndSignOut() throws {
-        _ = signUpFreshAccount()
+    // A pre-8am event opens the timeline scrolled to it; also covers schedule + unschedule.
+    func testEarlyEventScrollAndUnschedule() throws {
+        openPlanner()
 
         addTask("Morning prep", bucket: "progress")
         let task = elem("task-Morning prep")
@@ -245,12 +210,7 @@ final class DaybreakUITests: XCTestCase {
         elem("task-Morning prep").tap()
         app.switches["scheduledToggle"].switches.firstMatch.tap()
         app.buttons["saveItem"].tap()
-
-        // Sign out.
-        app.buttons["menuButton"].tap()
-        app.buttons["Sign out"].tap()
-        XCTAssertTrue(app.buttons["authSubmit"].waitForExistence(timeout: 5),
-                      "returned to auth screen")
+        XCTAssertTrue(elem("task-Morning prep").waitForExistence(timeout: 5))
     }
 
     // Daybreak commits to a light "paper" look; it must render light even when the

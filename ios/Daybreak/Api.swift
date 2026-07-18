@@ -77,6 +77,9 @@ struct ApiError: Error, LocalizedError {
     var errorDescription: String? { message }
 }
 
+// @MainActor so a SwiftData-backed conformer's ModelContext is always touched on the
+// main actor (Core Data traps otherwise). Cloud/mock conformers are unaffected.
+@MainActor
 protocol PlannerApi {
     func me() async throws -> User
     func signIn(email: String, password: String) async throws
@@ -91,97 +94,6 @@ protocol PlannerApi {
                      startMin: Int, durationMin: Int) async throws -> PlannerEvent
     func patchEvent(_ id: String, _ patch: [String: Any?]) async throws
     func deleteEvent(_ id: String) async throws
-}
-
-struct ApiClient: PlannerApi {
-    let base: URL
-
-    init() {
-        let env = ProcessInfo.processInfo.environment["DAYBREAK_API"]
-        base = URL(string: env ?? "https://daybreak.eovidiu.workers.dev")!
-    }
-
-    private func request<T: Decodable>(
-        _ method: String, _ path: String, body: [String: Any?]? = nil, as type: T.Type
-    ) async throws -> T {
-        guard let url = URL(string: path, relativeTo: base) else {
-            throw ApiError(message: "bad path \(path)")
-        }
-        var req = URLRequest(url: url)
-        req.httpMethod = method
-        if let body {
-            req.setValue("application/json", forHTTPHeaderField: "content-type")
-            req.httpBody = try JSONSerialization.data(
-                withJSONObject: body.mapValues { $0 ?? NSNull() })
-        }
-        let (data, response) = try await URLSession.shared.data(for: req)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        if status == 401 { throw ApiError(message: "unauthorized") }
-        guard (200..<300).contains(status) else {
-            let err = try? JSONDecoder().decode([String: String].self, from: data)
-            throw ApiError(message: err?["error"] ?? "request failed (\(status))")
-        }
-        return try JSONDecoder().decode(T.self, from: data)
-    }
-
-    struct Ok: Codable { let ok: Bool }
-    struct Providers: Codable { let providers: [String] }
-    struct Earlier: Codable { let tasks: [EarlierTask] }
-
-    func me() async throws -> User { try await request("GET", "/api/me", as: User.self) }
-
-    func signIn(email: String, password: String) async throws {
-        _ = try await request("POST", "/api/auth/signin",
-                              body: ["email": email, "password": password], as: Ok.self)
-    }
-
-    func signUp(email: String, password: String, name: String) async throws {
-        _ = try await request("POST", "/api/auth/signup",
-                              body: ["email": email, "password": password, "name": name],
-                              as: Ok.self)
-    }
-
-    func signOut() async throws {
-        _ = try await request("POST", "/api/auth/signout", as: Ok.self)
-    }
-
-    func day(_ day: String) async throws -> DayData {
-        try await request("GET", "/api/day/\(day)", as: DayData.self)
-    }
-
-    func earlier(before: String) async throws -> [EarlierTask] {
-        try await request("GET", "/api/earlier?before=\(before)", as: Earlier.self).tasks
-    }
-
-    func createTask(day: String, bucket: Bucket, title: String) async throws -> PlannerTask {
-        try await request("POST", "/api/tasks",
-                          body: ["day": day, "bucket": bucket.rawValue, "title": title],
-                          as: PlannerTask.self)
-    }
-
-    func patchTask(_ id: String, _ patch: [String: Any?]) async throws {
-        _ = try await request("PATCH", "/api/tasks/\(id)", body: patch, as: Ok.self)
-    }
-
-    func deleteTask(_ id: String) async throws {
-        _ = try await request("DELETE", "/api/tasks/\(id)", as: Ok.self)
-    }
-
-    func createEvent(day: String, bucket: Bucket, title: String,
-                     startMin: Int, durationMin: Int) async throws -> PlannerEvent {
-        try await request("POST", "/api/events", body: [
-            "day": day, "bucket": bucket.rawValue, "title": title,
-            "start_min": startMin, "duration_min": durationMin,
-        ], as: PlannerEvent.self)
-    }
-
-    func patchEvent(_ id: String, _ patch: [String: Any?]) async throws {
-        _ = try await request("PATCH", "/api/events/\(id)", body: patch, as: Ok.self)
-    }
-
-    func deleteEvent(_ id: String) async throws {
-        _ = try await request("DELETE", "/api/events/\(id)", as: Ok.self)
-    }
 }
 
 enum Day {

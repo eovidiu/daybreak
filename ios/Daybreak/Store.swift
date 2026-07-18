@@ -4,7 +4,7 @@ import SwiftUI
 final class PlannerStore: ObservableObject {
     let api: PlannerApi
 
-    init(api: PlannerApi = ApiClient()) {
+    init(api: PlannerApi) {
         self.api = api
     }
 
@@ -39,9 +39,10 @@ final class PlannerStore: ObservableObject {
 
     func load() async {
         do {
-            async let d = api.day(day)
-            async let e = api.earlier(before: Day.today())
-            let (dayData, earlierTasks) = try await (d, e)
+            // Sequential, not concurrent: the local SwiftData store shares one
+            // ModelContext, which traps on overlapping access.
+            let dayData = try await api.day(day)
+            let earlierTasks = try await api.earlier(before: Day.today())
             cache[day] = dayData
             data = dayData
             earlier = earlierTasks

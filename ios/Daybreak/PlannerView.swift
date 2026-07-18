@@ -36,9 +36,6 @@ struct PlannerView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button("Add event") { addingEvent = true }
-                        Button("Sign out", role: .destructive) {
-                            Task { await store.signOut() }
-                        }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                             .accessibilityIdentifier("menuButton")

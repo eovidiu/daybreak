@@ -1,8 +1,35 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct DaybreakApp: App {
-    @StateObject private var store = PlannerStore()
+    @StateObject private var store: PlannerStore
+
+    init() {
+        let container = Self.makeContainer()
+        // App.init runs on the main thread; LocalStore/PlannerStore are @MainActor.
+        let store = MainActor.assumeIsolated { () -> PlannerStore in
+            let local = LocalStore(container: container)
+            if ProcessInfo.processInfo.arguments.contains("UITEST_RESET") {
+                try? local.deleteAll()
+            }
+            return PlannerStore(api: local)
+        }
+        _store = StateObject(wrappedValue: store)
+    }
+
+    static func makeContainer() -> ModelContainer {
+        let schema = Schema([TaskEntity.self, EventEntity.self, CaptureItem.self,
+                             ReviewItem.self, AuditRecord.self])
+        do {
+            return try ModelContainer(for: schema)
+        } catch {
+            // If the on-disk store is incompatible, fall back to a fresh in-memory one
+            // rather than crashing on launch.
+            return try! ModelContainer(
+                for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        }
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -19,13 +46,11 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if !store.checkedSession {
-                ZStack { Theme.paper.ignoresSafeArea(); ProgressView().tint(Theme.muted) }
-            } else if store.user == nil {
-                AuthView()
-            } else {
+            if store.checkedSession {
                 PlannerView()
                     .tint(Theme.ink)
+            } else {
+                ZStack { Theme.paper.ignoresSafeArea(); ProgressView().tint(Theme.muted) }
             }
         }
         .alert("Something went wrong", isPresented: .init(
