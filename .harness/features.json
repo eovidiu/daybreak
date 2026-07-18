@@ -1,8 +1,8 @@
 {
   "project": "daybreak",
   "created": "2026-07-17T14:47:47Z",
-  "total_features": 1,
-  "passing": 1,
+  "total_features": 2,
+  "passing": 2,
   "features": [
     {
       "id": "F001",
@@ -24,7 +24,7 @@
       "correction_cycles": 0,
       "scope_expansions": [],
       "approaches_tried": [
-        "First attempt used an -AppleInterfaceStyle Dark launch argument to force the app dark in the UI test — this does NOT force dark on the iOS 26.5 simulator, producing a false-green (test passed even with the pin removed). Replaced with running the test on a simulator set to Dark appearance via 'xcrun simctl ui <sim> appearance dark', which gives a genuine red (pin off) / green (pin on).",
+        "First attempt used an -AppleInterfaceStyle Dark launch argument to force the app dark in the UI test \u2014 this does NOT force dark on the iOS 26.5 simulator, producing a false-green (test passed even with the pin removed). Replaced with running the test on a simulator set to Dark appearance via 'xcrun simctl ui <sim> appearance dark', which gives a genuine red (pin off) / green (pin on).",
         "Fix that worked: .preferredColorScheme(.light) at the WindowGroup root (propagates to sheets) + explicit .foregroundStyle(Theme.ink) on all fields as belt-and-suspenders."
       ],
       "failure_reason": null,
@@ -36,6 +36,28 @@
         "verified_at": "2026-07-17T15:02:28Z",
         "source": "conversation"
       }
+    },
+    {
+      "id": "F002",
+      "description": "Add an iOS app icon (Warm Editorial sunrise: terracotta half-sun rising over a sage horizon on a warm dawn gradient), 1024x1024 opaque, wired via Assets.xcassets/AppIcon.appiconset.",
+      "priority": 2,
+      "status": "passing",
+      "scope": [
+        "ios/Daybreak/Assets.xcassets/"
+      ],
+      "depends_on": [],
+      "assigned_to": null,
+      "test_file": null,
+      "coverage": "n/a (asset; verified by build compiling AppIcon into Assets.car + Info.plist CFBundleIcons)",
+      "notes": "Icon designed as HTML rendered at 1024 via Playwright, flattened opaque. Xcode auto-generates all sizes from the single 1024 source. Installed and verified on the XR.",
+      "correction_cycles": 0,
+      "scope_expansions": [],
+      "approaches_tried": [
+        "Rendered icon design via headless browser at exact 1024x1024; first composition had rays hidden behind the horizon band, fixed layering (rays behind sun, ground clips sun bottom)."
+      ],
+      "failure_reason": null,
+      "discovered_via": null,
+      "spec": null
     }
   ]
 }
