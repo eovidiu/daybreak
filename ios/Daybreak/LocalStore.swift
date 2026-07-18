@@ -172,6 +172,12 @@ final class LocalStore: PlannerApi {
         if let review = try reviewEntity(id) { context.delete(review); try context.save() }
     }
 
+    func digest(today: String) async throws -> Digest {
+        let tasks = try allTasks().map { $0.asTask() }
+        let events = try context.fetch(FetchDescriptor<EventEntity>()).map { $0.asEvent() }
+        return DigestService.digest(tasks: tasks, events: events, today: today)
+    }
+
     // MARK: helpers
 
     // SwiftData #Predicate with captured variables crashes on this runtime, so

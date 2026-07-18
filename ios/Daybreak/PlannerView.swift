@@ -13,6 +13,7 @@ struct PlannerView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     WeekStrip()
+                    if store.day == Day.today() { DigestCard() }
                     CaptureBar()
                     if !store.reviews.isEmpty {
                         ReviewSection { reviewing = $0 }
@@ -57,6 +58,48 @@ struct PlannerView: View {
             .sheet(isPresented: $addingEvent) { NewEventSheet() }
             .sheet(isPresented: $showingSettings) { SettingsSheet() }
         }
+    }
+}
+
+struct DigestCard: View {
+    @EnvironmentObject var store: PlannerStore
+
+    var body: some View {
+        let digest = store.digest
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Today at a glance").font(.serif(18, .semibold)).foregroundStyle(Theme.ink)
+            if digest.top3.isEmpty {
+                Text("A clear page. Capture something to begin.")
+                    .font(.system(size: 14)).foregroundStyle(Theme.muted)
+            } else {
+                ForEach(Array(digest.top3.enumerated()), id: \.element.id) { index, task in
+                    HStack(spacing: 8) {
+                        Text("\(index + 1)").font(.caption.monospacedDigit())
+                            .foregroundStyle(Theme.muted)
+                        Circle().fill(Theme.accent(task.bucket)).frame(width: 6, height: 6)
+                        Text(task.title).font(.system(size: 14)).foregroundStyle(Theme.ink)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            if let stuck = digest.stuck {
+                Label("Still waiting: \(stuck.title)", systemImage: "clock.arrow.circlepath")
+                    .font(.caption).foregroundStyle(Theme.urgent).lineLimit(1)
+                    .accessibilityIdentifier("digestStuck")
+            }
+            if let win = digest.smallWin {
+                Label("Recent win: \(win.title)", systemImage: "checkmark.seal")
+                    .font(.caption).foregroundStyle(Theme.progress).lineLimit(1)
+                    .accessibilityIdentifier("digestWin")
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
+        .shadow(color: Theme.ink.opacity(0.05), radius: 12, y: 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("digestCard")
     }
 }
 

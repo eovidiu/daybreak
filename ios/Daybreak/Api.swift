@@ -29,11 +29,13 @@ struct PlannerTask: Codable, Identifiable, Equatable {
     var scheduledStart: Int?
     var scheduledMinutes: Int?
     var position: Int
+    var completedAt: Date? = nil
 
     enum CodingKeys: String, CodingKey {
         case id, day, bucket, title, note, done, position
         case scheduledStart = "scheduled_start"
         case scheduledMinutes = "scheduled_minutes"
+        case completedAt = "completed_at"
     }
 }
 
@@ -102,6 +104,9 @@ protocol PlannerApi {
     func acceptReview(_ id: String, bucket: Bucket, day: String, title: String,
                       start: Int?, minutes: Int?) async throws -> PlannerTask
     func dismissReview(_ id: String) async throws
+
+    // Today's digest, computed over all local data.
+    func digest(today: String) async throws -> Digest
 }
 
 enum Day {

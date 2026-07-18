@@ -265,6 +265,20 @@ final class DaybreakUITests: XCTestCase {
         app.buttons["closeSettings"].tap()
     }
 
+    // Daily digest (F006): the "Today at a glance" card surfaces a captured task in its
+    // top-3. Capture reloads the day, which recomputes the digest.
+    func testDigestSurfacesCapturedTask() throws {
+        openPlanner()
+        let digest = elem("digestCard")
+        XCTAssertTrue(digest.waitForExistence(timeout: 8), "digest card shows on Today")
+        let field = app.textFields["captureField"]
+        field.tap()
+        field.typeText("call the client")   // "call" → Urgent, filed → reload recomputes digest
+        app.buttons["captureSubmit"].tap()
+        XCTAssertTrue(digest.staticTexts["Call the client"].waitForExistence(timeout: 8),
+                      "captured task appears in the digest top-3")
+    }
+
     // Daybreak commits to a light "paper" look; it must render light even when the
     // system is in Dark Mode, so field text never goes white-on-white.
     //

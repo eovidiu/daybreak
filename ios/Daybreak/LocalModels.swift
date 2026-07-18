@@ -44,7 +44,7 @@ final class TaskEntity {
     func asTask() -> PlannerTask {
         PlannerTask(id: id, day: day, bucket: bucket, title: title, note: note, done: done,
                     scheduledStart: scheduledStart, scheduledMinutes: scheduledMinutes,
-                    position: position)
+                    position: position, completedAt: completedAt)
     }
 
     func asEarlier() -> EarlierTask {

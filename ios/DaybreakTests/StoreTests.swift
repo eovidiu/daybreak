@@ -230,4 +230,15 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(store.reviews.isEmpty)
         await settle()
     }
+
+    func testDigestPopulatedOnLoad() async {
+        let (store, api) = makeStore()
+        api.tasks = [
+            PlannerTask(id: "t1", day: Day.today(), bucket: .urgent, title: "Top one",
+                        note: "", done: false, scheduledStart: nil, scheduledMinutes: nil,
+                        position: 0),
+        ]
+        await store.bootstrap()
+        XCTAssertEqual(store.digest.top3.map(\.title), ["Top one"])
+    }
 }

@@ -19,6 +19,7 @@ final class PlannerStore: ObservableObject {
     @Published var data = DayData(tasks: [], events: [])
     @Published var earlier: [EarlierTask] = []
     @Published var reviews: [Review] = []
+    @Published var digest = Digest(top3: [], stuck: nil, smallWin: nil, todayEvents: [])
     @Published var errorMessage: String?
     @Published var dayLoadStamp = 0
 
@@ -36,6 +37,7 @@ final class PlannerStore: ObservableObject {
         cache = [:]
         data = DayData(tasks: [], events: [])
         reviews = []
+        digest = Digest(top3: [], stuck: nil, smallWin: nil, todayEvents: [])
     }
 
     func select(day newDay: String) {
@@ -51,10 +53,12 @@ final class PlannerStore: ObservableObject {
             let dayData = try await api.day(day)
             let earlierTasks = try await api.earlier(before: Day.today())
             let queued = try await api.reviews()
+            let todayDigest = try await api.digest(today: Day.today())
             cache[day] = dayData
             data = dayData
             earlier = earlierTasks
             reviews = queued
+            digest = todayDigest
             dayLoadStamp += 1
         } catch {
             report(error)
