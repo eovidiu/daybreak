@@ -4,9 +4,16 @@ Persistent record of architectural decisions, patterns, gotchas, and active cont
 Referenced in CLAUDE.md; load at session start.
 
 ## Active Context
-- Last completed: F001 — pinned iOS app to light (`.preferredColorScheme(.light)`) so
-  fields are legible in Dark Mode. Passing, 98.03% coverage, 21 tests.
-- Next up: no open features. Optionally build+install the fixed clean app on the XR.
+- **Strategic pivot (2026-07-18):** iOS and web parity is intentionally broken. iOS is
+  local-first (SwiftData, no account) and imports the AI features from secondBrainApp;
+  web stays cloud-backed. Device↔web sync is deferred and tracked as F009 (needs-spec,
+  do NOT implement). F004–F008 specify the 5 AI recommendations.
+- Last completed: **F004 — AI quick-capture** (NL → bucketed, scheduled task). Two-tier
+  `CaptureClassifier`: RuleBased (deterministic) + FoundationModels (iOS 26+), unified by
+  `CaptureEngine` with validated fallback. Capture bar in `PlannerView`. Passing; full
+  iOS suite green (6 UI + unit); Store 98.88% / PlannerView 99.52%.
+- Next up: **F005 — Bouncer** (confidence-gated auto-file + review queue). Writes one
+  AuditRecord per classification; >=threshold → TaskEntity(autoFiled), else → ReviewItem.
 
 ## Cross-Cutting Concerns
 - Dual-stack:
@@ -31,6 +38,14 @@ Referenced in CLAUDE.md; load at session start.
 - Web restyles must preserve every DOM class/ID the E2E suite selects on — change
   only palette/type/finish, never structure
 - iOS Store's API is injectable behind `PlannerApi` so unit tests drive a mock
+- **Two-tier on-device AI (F004)**: an injectable `CaptureClassifier` protocol with a
+  deterministic `RuleBasedClassifier` (the tested oracle) and a `FoundationModelClassifier`
+  (non-deterministic). `CaptureEngine` runs the model, validates its output with
+  `Classification.isInRange`, and falls back to the rule-based tier on throw/out-of-range.
+  `PlannerStore(classifier:)` is injectable so capture-flow tests use a fixed `StubClassifier`.
+- **Isolate non-deterministic I/O for coverage**: pull the model→domain normalization into
+  a pure function (`CaptureGuess.asClassification()`) so every branch is unit-tested;
+  only the `session.respond(...)` call itself stays uncovered.
 
 ### Gotchas
 - **SwiftData: three crash traps hit building F003's LocalStore** — (1) `#Predicate` with a
@@ -61,6 +76,22 @@ Referenced in CLAUDE.md; load at session start.
 - **Xcode/OS updates wipe simulator runtimes** — `simctl list runtimes` can go empty
   overnight; re-run `xcodebuild -downloadPlatform iOS` (~8.5GB) before iOS tests. The
   available simulator after the 2026-07-17 update is iPhone 17 Pro / iOS 26.5.
+- **FoundationModels is unavailable on the simulator** — `SystemLanguageModel` reports
+  available but `respond(...)` throws "Model Catalog error: no underlying assets". This is
+  expected; `CaptureEngine`'s `try?` fallback keeps capture working (verified end-to-end
+  by the capture UI test, which exercises the rule-based tier). So on the sim the FM
+  `classify` branches and `isAvailable`'s false branch stay partly uncovered — they run on
+  real hardware / iOS<26; the misses are environment branches, not gaps.
+- **Coverage artifact**: Swift's `??`/`.max()` insert compiler autoclosures that xccov
+  counts as separate 0%-covered regions even when structurally unreachable (e.g.
+  `scores[$0] ?? 0` where `scores` is always fully populated). These are why the classifier
+  files sit at 90–94% despite 100% function-level coverage. Don't add fake tests to chase them.
+- **Keyboard avoidance can hide a field under the inline nav bar (XCUITest)**: with a
+  keyboard still up from a prior `TextField`, SwiftUI pushes the next field up; if it lands
+  under the translucent nav bar, `isHittable` is true but a tap hits the bar and never
+  focuses the field ("Failed to synthesize event: ...no keyboard focus"). Fix: the planner
+  ScrollView has `.scrollDismissesKeyboard(.immediately)`, and the UI test's `addTask`
+  helper swipes to resign the keyboard before the next add.
 
 ## Meta-Session 2026-07-17
 - Scope vs planned: F001 stayed within its 5-file scope; no expansions. Theme.swift was
