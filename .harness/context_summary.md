@@ -131,3 +131,25 @@ Referenced in CLAUDE.md; load at session start.
 - For any test that depends on an environment mode (dark mode, locale, network state),
   prove it RED by disabling the fix before trusting a GREEN — env-dependent tests are
   the most common false-greens.
+
+## Meta-Session 2026-07-18
+- Scope: implemented the whole AI feature set F004–F008 in one session (the 5 secondBrainApp
+  recommendations), on the local-first iOS pivot. All passing, all pushed to main.
+- Model calibration: no feature burned correction cycles; the recurring cost was XCUITest
+  flake (keyboard focus, nav-bar overlap) and test-isolation (UserDefaults), not logic.
+- What kept coverage honest: three recurring "misses that aren't gaps" — compiler `??`
+  autoclosures, environment-branch code (FoundationModels availability, App Group presence),
+  and non-deterministic model I/O. The move that worked: extract the pure/normalization
+  part into a testable function and let only the true I/O stay uncovered (see
+  CaptureGuess.asClassification, SharedCapture.enqueue). Never added fake tests to chase
+  autoclosure regions.
+- Design pattern that paid off repeatedly: put new capabilities behind the injectable
+  PlannerApi seam + a stub, so each feature's logic is unit-tested with MockApi and the
+  real SwiftData path is tested at the LocalStore level with an in-memory container.
+- F008 source organization: splitting value-type DTOs into Models.swift let the share
+  extension compile a lean, self-contained target — the key to embedding extensions without
+  a second @main or a framework restructure.
+- Provisioning boundary: extension targets build + embed on the simulator with ad-hoc
+  signing, but real App Group data sharing on a device needs the group + extension bundle
+  IDs added to the provisioning profile — a portal step outside this environment. Surfaced,
+  not faked.

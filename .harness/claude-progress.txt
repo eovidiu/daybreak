@@ -19,3 +19,23 @@
 - Note: overnight Xcode update wiped the iOS sim runtime; re-downloaded (iPhone 17 Pro / iOS 26.5)
 - Next: optionally build+install the fixed clean app on the physical XR; no open features
 - Blockers: none
+
+## Session 3 - 2026-07-18 (single-session)
+- Features: F004-F008 - the five AI recommendations, on the local-first iOS pivot
+  - F004 AI quick-capture (two-tier CaptureClassifier: RuleBased + FoundationModels)
+  - F005 Bouncer (confidence-gated auto-file + review queue)
+  - F006 Daily digest (pure DigestService + DigestCard)
+  - F007 Correction/audit loop (patchTask logs bucket/day/start changes; History view)
+  - F008 Widget + Share extension (App Group SharedStore; captureId pipeline + drain-on-launch)
+- Status: all complete (passing), all pushed to main (through commit 969359b)
+- Tests: full iOS suite green - unit + UI on iPhone 17 Pro / iOS 26.5 simulator
+- Coverage: shared logic >95% throughout; documented exemptions are compiler `??`
+  autoclosures, FoundationModels/App-Group environment branches, and model I/O
+- Decisions: injectable PlannerApi seam + stubs for testability; value-type DTOs split
+  into Models.swift so the share extension stays lean; SharedStore falls back to the local
+  store when the App Group is unavailable
+- Next: F009 (device<->web sync) still needs specification before implementation.
+  Optional: build+install on the physical XR; on a real device the extension App Group
+  needs the group + extension bundle IDs added to the provisioning profile (portal step).
+- Blockers: none for the delivered work. Extension App Group data-sharing is unverified on
+  a physical device (needs portal provisioning); the sim build + all tests are green.
