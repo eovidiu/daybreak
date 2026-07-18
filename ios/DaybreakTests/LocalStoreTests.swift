@@ -114,11 +114,19 @@ final class LocalStoreTests: XCTestCase {
                        cleanedTitle: title, confidence: confidence, tier: tier)
     }
 
+    // Enqueue-then-file, mirroring the capture pipeline.
+    @discardableResult
+    private func file(_ store: LocalStore, _ c: Classification, text: String = "x",
+                      source: CaptureSource = .typed,
+                      threshold: Double = 0.6) async throws -> CaptureResult {
+        let id = try await store.enqueueCapture(text: text, source: source)
+        return try await store.fileCapture(captureId: id, classification: c, threshold: threshold)
+    }
+
     func testHighConfidenceAutoFilesTaskWithAudit() async throws {
         let store = try makeStore()
-        let result = try await store.fileCapture(
-            text: "call the bank at 9", classification: classification(0.9, tier: .foundationModels),
-            threshold: 0.6)
+        let result = try await file(store, classification(0.9, tier: .foundationModels),
+                                    text: "call the bank at 9")
         guard case .filed(let task) = result else { return XCTFail("expected filed") }
         XCTAssertEqual(task.title, "Call bank")
         XCTAssertEqual(task.scheduledStart, 540)
@@ -134,10 +142,9 @@ final class LocalStoreTests: XCTestCase {
 
     func testLowConfidenceQueuesReviewAndFilesNoTask() async throws {
         let store = try makeStore()
-        let result = try await store.fileCapture(
-            text: "maybe reorganize photos", classification: classification(0.4, bucket: .extra,
-                                                                            title: "Reorganize photos"),
-            threshold: 0.6)
+        let result = try await file(store, classification(0.4, bucket: .extra,
+                                                          title: "Reorganize photos"),
+                                    text: "maybe reorganize photos")
         guard case .queued(let review) = result else { return XCTFail("expected queued") }
         XCTAssertEqual(review.title, "Reorganize photos")
         XCTAssertEqual(review.confidence, 0.4, accuracy: 0.0001)
@@ -150,11 +157,10 @@ final class LocalStoreTests: XCTestCase {
 
     func testAcceptReviewCreatesTaskFromEditedValues() async throws {
         let store = try makeStore()
-        guard case .queued(let review) = try await store.fileCapture(
-            text: "read design book", classification: classification(0.4, bucket: .extra,
-                                                                      start: nil, minutes: nil,
-                                                                      title: "Read design book"),
-            threshold: 0.6) else { return XCTFail("expected queued") }
+        guard case .queued(let review) = try await file(
+            store, classification(0.4, bucket: .extra, start: nil, minutes: nil,
+                                  title: "Read design book"),
+            text: "read design book") else { return XCTFail("expected queued") }
 
         let task = try await store.acceptReview(review.id, bucket: .progress, day: "2026-07-19",
                                                 title: "Read the design book", start: 600, minutes: 45)
@@ -169,9 +175,9 @@ final class LocalStoreTests: XCTestCase {
 
     func testDismissReviewDropsItWithoutTask() async throws {
         let store = try makeStore()
-        guard case .queued(let review) = try await store.fileCapture(
-            text: "someday sort inbox", classification: classification(0.35, bucket: .extra),
-            threshold: 0.6) else { return XCTFail("expected queued") }
+        guard case .queued(let review) = try await file(
+            store, classification(0.35, bucket: .extra),
+            text: "someday sort inbox") else { return XCTFail("expected queued") }
         try await store.dismissReview(review.id)
         let queued = try await store.reviews()
         XCTAssertTrue(queued.isEmpty)
@@ -181,12 +187,37 @@ final class LocalStoreTests: XCTestCase {
 
     func testReviewsSortedByCreation() async throws {
         let store = try makeStore()
-        _ = try await store.fileCapture(text: "a", classification: classification(0.4, title: "First"),
-                                        threshold: 0.6)
-        _ = try await store.fileCapture(text: "b", classification: classification(0.4, title: "Second"),
-                                        threshold: 0.6)
+        try await file(store, classification(0.4, title: "First"), text: "a")
+        try await file(store, classification(0.4, title: "Second"), text: "b")
         let queued = try await store.reviews()
         XCTAssertEqual(queued.map(\.title), ["First", "Second"])
+    }
+
+    // MARK: capture pipeline (F008)
+
+    func testEnqueueAndPendingCaptures() async throws {
+        let store = try makeStore()
+        let shareId = try await store.enqueueCapture(text: "from share", source: .share)
+        _ = try await store.enqueueCapture(text: "typed one", source: .typed)
+        let pending = try await store.pendingCaptures()
+        XCTAssertEqual(pending.map(\.text), ["from share", "typed one"])
+
+        // Filing one takes it out of the pending set.
+        _ = try await store.fileCapture(captureId: shareId, classification: classification(0.9),
+                                        threshold: 0.6)
+        let remaining = try await store.pendingCaptures()
+        XCTAssertEqual(remaining.map(\.text), ["typed one"])
+    }
+
+    func testFileCaptureUnknownIdThrows() async throws {
+        let store = try makeStore()
+        do {
+            _ = try await store.fileCapture(captureId: "missing",
+                                            classification: classification(0.9), threshold: 0.6)
+            XCTFail("expected a throw for an unknown capture id")
+        } catch {
+            // expected
+        }
     }
 
     // MARK: correction / audit loop (F007)
@@ -194,10 +225,9 @@ final class LocalStoreTests: XCTestCase {
     // Auto-files a task (0.9 >= 0.6) so it carries an auditRecordId, and returns its id.
     private func fileAuditedTask(_ store: LocalStore, day: String = "2026-07-18",
                                  bucket: Bucket = .urgent) async throws -> String {
-        guard case .filed(let task) = try await store.fileCapture(
-            text: "call the bank",
-            classification: classification(0.9, bucket: bucket, day: day, start: 540),
-            threshold: 0.6) else { XCTFail("expected filed"); return "" }
+        guard case .filed(let task) = try await file(
+            store, classification(0.9, bucket: bucket, day: day, start: 540),
+            text: "call the bank") else { XCTFail("expected filed"); return "" }
         return task.id
     }
 

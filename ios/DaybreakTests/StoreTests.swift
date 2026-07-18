@@ -242,6 +242,17 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(store.digest.top3.map(\.title), ["Top one"])
     }
 
+    func testDrainPendingClassifiesShareCaptures() async {
+        let (store, api) = captureStore(
+            Classification(bucket: .urgent, day: Day.today(), startMin: nil, durationMin: nil,
+                           cleanedTitle: "Buy milk", confidence: 0.9))
+        _ = try? await api.enqueueCapture(text: "buy milk", source: .share)  // as if by the extension
+        await store.bootstrap()   // drains pending, then loads
+        XCTAssertEqual(store.data.tasks.first?.title, "Buy milk")
+        let stillPending = try? await api.pendingCaptures()
+        XCTAssertTrue(stillPending?.isEmpty ?? false)
+    }
+
     func testAuditHistoryPassesThrough() async {
         let (store, api) = makeStore()
         api.auditEntries = [

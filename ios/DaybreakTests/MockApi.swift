@@ -78,9 +78,21 @@ final class MockApi: PlannerApi, @unchecked Sendable {
         return t
     }
 
-    func fileCapture(text: String, classification c: Classification,
+    var pendingQueue: [PendingCapture] = []
+
+    func enqueueCapture(text: String, source: CaptureSource) async throws -> String {
+        try guardOk()
+        let id = UUID().uuidString
+        pendingQueue.append(PendingCapture(id: id, text: text))
+        return id
+    }
+
+    func pendingCaptures() async throws -> [PendingCapture] { try guardOk(); return pendingQueue }
+
+    func fileCapture(captureId: String, classification c: Classification,
                      threshold: Double) async throws -> CaptureResult {
         try guardOk()
+        pendingQueue.removeAll { $0.id == captureId }
         if Bouncer.autoFiles(confidence: c.confidence, threshold: threshold) {
             return .filed(insertTask(day: c.day, bucket: c.bucket, title: c.cleanedTitle,
                                      start: c.startMin, minutes: c.durationMin))

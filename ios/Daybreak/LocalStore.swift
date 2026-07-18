@@ -116,17 +116,34 @@ final class LocalStore: PlannerApi {
 
     // MARK: capture review queue
 
-    // Writes one AuditRecord per capture; auto-files a task when confidence clears the
-    // threshold, otherwise queues a ReviewItem and creates no task.
-    func fileCapture(text: String, classification c: Classification,
+    // Enqueues a raw capture (pending classification). Used by the capture bar and by the
+    // share extension writing directly to the shared store.
+    func enqueueCapture(text: String, source: CaptureSource) async throws -> String {
+        let item = CaptureItem(text: text, source: source, status: .pending, now: Date())
+        context.insert(item)
+        try context.save()
+        return item.id
+    }
+
+    func pendingCaptures() async throws -> [PendingCapture] {
+        try context.fetch(FetchDescriptor<CaptureItem>())
+            .filter { $0.status == .pending }
+            .sorted { $0.createdAt < $1.createdAt }
+            .map { PendingCapture(id: $0.id, text: $0.text) }
+    }
+
+    // Writes one AuditRecord for the capture; auto-files a task when confidence clears the
+    // threshold, otherwise queues a ReviewItem and creates no task. Marks the capture.
+    func fileCapture(captureId: String, classification c: Classification,
                      threshold: Double) async throws -> CaptureResult {
+        guard let capture = try captureItem(captureId) else {
+            throw ApiError(message: "capture not found")
+        }
         let now = Date()
-        let capture = CaptureItem(text: text, source: .typed, now: now)
-        context.insert(capture)
         let autoFiled = Bouncer.autoFiles(confidence: c.confidence, threshold: threshold)
-        let audit = AuditRecord(captureId: capture.id, rawInput: text, chosenBucket: c.bucket,
-                                confidence: c.confidence, autoFiled: autoFiled,
-                                modelTier: c.tier, now: now)
+        let audit = AuditRecord(captureId: capture.id, rawInput: capture.text,
+                                chosenBucket: c.bucket, confidence: c.confidence,
+                                autoFiled: autoFiled, modelTier: c.tier, now: now)
         context.insert(audit)
 
         if autoFiled {
@@ -244,6 +261,10 @@ final class LocalStore: PlannerApi {
 
     private func reviewEntity(_ id: String) throws -> ReviewItem? {
         try context.fetch(FetchDescriptor<ReviewItem>()).first { $0.id == id }
+    }
+
+    private func captureItem(_ id: String) throws -> CaptureItem? {
+        try context.fetch(FetchDescriptor<CaptureItem>()).first { $0.id == id }
     }
 
     private func nextPosition(day: String) throws -> Int {

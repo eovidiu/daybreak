@@ -68,6 +68,12 @@ struct DayData: Codable, Equatable {
     var events: [PlannerEvent]
 }
 
+// A capture awaiting classification (e.g. written by the share extension).
+struct PendingCapture: Identifiable, Equatable {
+    let id: String
+    let text: String
+}
+
 struct User: Codable, Equatable {
     let id: String
     let email: String
@@ -97,8 +103,12 @@ protocol PlannerApi {
     func patchEvent(_ id: String, _ patch: [String: Any?]) async throws
     func deleteEvent(_ id: String) async throws
 
-    // Capture review queue (local-first AI features).
-    func fileCapture(text: String, classification: Classification,
+    // Capture pipeline (local-first AI features). A capture is enqueued first (by the
+    // capture bar, or by the share extension writing straight to the shared store), then
+    // filed through the classifier + Bouncer.
+    func enqueueCapture(text: String, source: CaptureSource) async throws -> String
+    func pendingCaptures() async throws -> [PendingCapture]
+    func fileCapture(captureId: String, classification: Classification,
                      threshold: Double) async throws -> CaptureResult
     func reviews() async throws -> [Review]
     func acceptReview(_ id: String, bucket: Bucket, day: String, title: String,

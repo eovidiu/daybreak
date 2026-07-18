@@ -28,7 +28,10 @@ final class PlannerStore: ObservableObject {
     func bootstrap() async {
         user = try? await api.me()
         checkedSession = true
-        if user != nil { await load() }
+        if user != nil {
+            await drainPendingCaptures()
+            await load()
+        }
     }
 
     func signOut() async {
@@ -95,11 +98,27 @@ final class PlannerStore: ObservableObject {
         guard !trimmed.isEmpty else { return }
         let c = await classifier.classify(trimmed, today: Day.today())
         do {
-            let result = try await api.fileCapture(text: trimmed, classification: c,
+            let id = try await api.enqueueCapture(text: trimmed, source: .typed)
+            let result = try await api.fileCapture(captureId: id, classification: c,
                                                    threshold: CaptureThreshold.load(defaults))
             switch result {
             case .filed: await load()
             case .queued(let review): reviews.append(review)
+            }
+        } catch {
+            report(error)
+        }
+    }
+
+    // Classifies captures written while the app was closed (by the share extension) through
+    // the same pipeline. Runs on launch.
+    func drainPendingCaptures() async {
+        do {
+            let threshold = CaptureThreshold.load(defaults)
+            for pending in try await api.pendingCaptures() {
+                let c = await classifier.classify(pending.text, today: Day.today())
+                _ = try await api.fileCapture(captureId: pending.id, classification: c,
+                                              threshold: threshold)
             }
         } catch {
             report(error)
