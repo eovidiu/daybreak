@@ -239,6 +239,51 @@ struct ReviewSheet: View {
     }
 }
 
+// The immutable audit trail: every capture, how it was filed, and any later corrections.
+struct HistorySheet: View {
+    @EnvironmentObject var store: PlannerStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var entries: [AuditEntry] = []
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if entries.isEmpty {
+                    Text("No captures yet.").foregroundStyle(Theme.muted)
+                }
+                ForEach(entries) { entry in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(entry.rawInput).font(.system(size: 15)).foregroundStyle(Theme.ink)
+                        Text(summary(entry)).font(.caption2).foregroundStyle(Theme.muted)
+                        ForEach(Array(entry.corrections.enumerated()), id: \.offset) { _, c in
+                            Text("↳ \(c.field): \(show(c.old)) → \(show(c.new))")
+                                .font(.caption2).foregroundStyle(Theme.urgent)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("audit-\(entry.rawInput)")
+                }
+            }
+            .navigationTitle("History")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }.accessibilityIdentifier("closeHistory")
+                }
+            }
+        }
+        .task { entries = await store.auditHistory() }
+    }
+
+    private func summary(_ e: AuditEntry) -> String {
+        let tier = e.tier == .foundationModels ? "on-device AI" : "rules"
+        return "\(e.bucket.title) · \(Int(e.confidence * 100))% · "
+            + (e.autoFiled ? "filed" : "queued") + " · \(tier)"
+    }
+
+    private func show(_ value: String) -> String { value.isEmpty ? "—" : value }
+}
+
 // Adjusts the Bouncer's auto-file threshold.
 struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss

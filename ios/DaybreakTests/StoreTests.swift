@@ -241,4 +241,14 @@ final class StoreTests: XCTestCase {
         await store.bootstrap()
         XCTAssertEqual(store.digest.top3.map(\.title), ["Top one"])
     }
+
+    func testAuditHistoryPassesThrough() async {
+        let (store, api) = makeStore()
+        api.auditEntries = [
+            AuditEntry(id: "a1", rawInput: "call bank", bucket: .urgent, confidence: 0.9,
+                       autoFiled: true, tier: .ruleBased, createdAt: Date(), corrections: []),
+        ]
+        let history = await store.auditHistory()
+        XCTAssertEqual(history.map(\.rawInput), ["call bank"])
+    }
 }

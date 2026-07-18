@@ -125,6 +125,10 @@ final class PlannerStore: ObservableObject {
         do { try await api.dismissReview(review.id) } catch { report(error) }
     }
 
+    func auditHistory() async -> [AuditEntry] {
+        (try? await api.auditHistory()) ?? []
+    }
+
     func toggle(_ task: PlannerTask) {
         sync {
             if let i = data.tasks.firstIndex(where: { $0.id == task.id }) { data.tasks[i].done.toggle() }

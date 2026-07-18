@@ -64,6 +64,7 @@ final class LocalStore: PlannerApi {
 
     func patchTask(_ id: String, _ patch: [String: Any?]) async throws {
         guard let t = try taskEntity(id) else { return }
+        try recordCorrections(for: t, patch: patch)  // before the values change
         if let done = patch["done"] as? Bool {
             t.done = done
             t.completedAt = done ? Date() : nil
@@ -176,6 +177,53 @@ final class LocalStore: PlannerApi {
         let tasks = try allTasks().map { $0.asTask() }
         let events = try context.fetch(FetchDescriptor<EventEntity>()).map { $0.asEvent() }
         return DigestService.digest(tasks: tasks, events: events, today: today)
+    }
+
+    // MARK: audit history
+
+    func auditHistory() async throws -> [AuditEntry] {
+        try context.fetch(FetchDescriptor<AuditRecord>())
+            .sorted { $0.createdAt > $1.createdAt }   // newest first
+            .map { record in
+                AuditEntry(id: record.id, rawInput: record.rawInput,
+                           bucket: record.chosenBucket, confidence: record.confidence,
+                           autoFiled: record.autoFiled, tier: record.modelTier,
+                           createdAt: record.createdAt,
+                           corrections: CorrectionLog.decode(record.correctionsJSON))
+            }
+    }
+
+    // Appends a {field,old,new,at} correction to a task's linked AuditRecord for each of
+    // bucket / day / scheduledStart that this patch actually changes. Append-only; title
+    // and note edits are not corrections.
+    private func recordCorrections(for t: TaskEntity, patch: [String: Any?]) throws {
+        guard let auditId = t.auditRecordId, let audit = try auditEntity(auditId) else { return }
+        var log = CorrectionLog.decode(audit.correctionsJSON)
+        let now = Date()
+        var appended = false
+
+        if let raw = patch["bucket"] as? String, raw != t.bucketRaw {
+            log.append(Correction(field: "bucket", old: t.bucketRaw, new: raw, at: now))
+            appended = true
+        }
+        if let day = patch["day"] as? String, day != t.day {
+            log.append(Correction(field: "day", old: t.day, new: day, at: now))
+            appended = true
+        }
+        if patch.keys.contains("scheduled_start") {
+            let newStart = patch["scheduled_start"] as? Int
+            if newStart != t.scheduledStart {
+                log.append(Correction(field: "scheduledStart",
+                                      old: t.scheduledStart.map(String.init) ?? "",
+                                      new: newStart.map(String.init) ?? "", at: now))
+                appended = true
+            }
+        }
+        if appended { audit.correctionsJSON = CorrectionLog.encode(log) }
+    }
+
+    private func auditEntity(_ id: String) throws -> AuditRecord? {
+        try context.fetch(FetchDescriptor<AuditRecord>()).first { $0.id == id }
     }
 
     // MARK: helpers

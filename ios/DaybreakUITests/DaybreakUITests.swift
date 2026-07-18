@@ -279,6 +279,30 @@ final class DaybreakUITests: XCTestCase {
                       "captured task appears in the digest top-3")
     }
 
+    // Correction / audit loop (F007): a captured task is audited; rescheduling it logs a
+    // correction, which shows in the History view.
+    func testCaptureCorrectionAppearsInHistory() throws {
+        openPlanner()
+        let field = app.textFields["captureField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 8))
+        field.tap()
+        field.typeText("call the client")
+        app.buttons["captureSubmit"].tap()
+
+        let task = elem("task-Call the client")
+        XCTAssertTrue(task.waitForExistence(timeout: 8))
+        scrollTo(task)
+        task.tap()
+        app.switches["scheduledToggle"].switches.firstMatch.tap()   // schedule -> a correction
+        app.buttons["saveItem"].tap()
+
+        app.buttons["menuButton"].tap()
+        app.buttons["History"].tap()
+        let entry = elem("audit-call the client")
+        XCTAssertTrue(entry.waitForExistence(timeout: 5), "capture appears in history")
+        XCTAssertTrue(entry.label.contains("scheduledStart"), "the correction is recorded")
+    }
+
     // Daybreak commits to a light "paper" look; it must render light even when the
     // system is in Dark Mode, so field text never goes white-on-white.
     //

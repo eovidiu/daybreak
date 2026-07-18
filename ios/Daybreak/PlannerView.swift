@@ -7,6 +7,7 @@ struct PlannerView: View {
     @State private var reviewing: Review?
     @State private var addingEvent = false
     @State private var showingSettings = false
+    @State private var showingHistory = false
 
     var body: some View {
         NavigationStack {
@@ -44,6 +45,7 @@ struct PlannerView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button("Add event") { addingEvent = true }
+                        Button("History") { showingHistory = true }
                         Button("Settings") { showingSettings = true }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -56,6 +58,7 @@ struct PlannerView: View {
             .sheet(item: $editingEvent) { EventEditSheet(event: $0) }
             .sheet(item: $reviewing) { ReviewSheet(review: $0) }
             .sheet(isPresented: $addingEvent) { NewEventSheet() }
+            .sheet(isPresented: $showingHistory) { HistorySheet() }
             .sheet(isPresented: $showingSettings) { SettingsSheet() }
         }
     }

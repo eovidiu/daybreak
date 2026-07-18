@@ -110,6 +110,9 @@ final class MockApi: PlannerApi, @unchecked Sendable {
         try guardOk()
         return DigestService.digest(tasks: tasks, events: events, today: today)
     }
+
+    var auditEntries: [AuditEntry] = []
+    func auditHistory() async throws -> [AuditEntry] { try guardOk(); return auditEntries }
 }
 
 // Emits a fixed classification so capture-flow tests are deterministic.

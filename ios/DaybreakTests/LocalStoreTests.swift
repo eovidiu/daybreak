@@ -188,4 +188,65 @@ final class LocalStoreTests: XCTestCase {
         let queued = try await store.reviews()
         XCTAssertEqual(queued.map(\.title), ["First", "Second"])
     }
+
+    // MARK: correction / audit loop (F007)
+
+    // Auto-files a task (0.9 >= 0.6) so it carries an auditRecordId, and returns its id.
+    private func fileAuditedTask(_ store: LocalStore, day: String = "2026-07-18",
+                                 bucket: Bucket = .urgent) async throws -> String {
+        guard case .filed(let task) = try await store.fileCapture(
+            text: "call the bank",
+            classification: classification(0.9, bucket: bucket, day: day, start: 540),
+            threshold: 0.6) else { XCTFail("expected filed"); return "" }
+        return task.id
+    }
+
+    func testBucketAndScheduleChangesAreLoggedAsCorrections() async throws {
+        let store = try makeStore()
+        let id = try await fileAuditedTask(store)
+        try await store.patchTask(id, ["bucket": "progress"])
+        try await store.patchTask(id, ["scheduled_start": 600])
+        try await store.patchTask(id, ["day": "2026-07-20"])
+
+        let corrections = try await store.auditHistory().first?.corrections ?? []
+        XCTAssertEqual(corrections.map(\.field), ["bucket", "scheduledStart", "day"])
+        XCTAssertEqual(corrections[0].old, "urgent")
+        XCTAssertEqual(corrections[0].new, "progress")
+        XCTAssertEqual(corrections[1].new, "600")     // scheduledStart 540 -> 600
+        XCTAssertEqual(corrections[2].new, "2026-07-20")
+    }
+
+    func testTitleAndNoteEditsAreNotCorrections() async throws {
+        let store = try makeStore()
+        let id = try await fileAuditedTask(store)
+        try await store.patchTask(id, ["title": "Call the credit union", "note": "urgent"])
+        let corrections = try await store.auditHistory().first?.corrections ?? []
+        XCTAssertTrue(corrections.isEmpty)
+    }
+
+    func testNoOpChangeIsNotLogged() async throws {
+        let store = try makeStore()
+        let id = try await fileAuditedTask(store, bucket: .urgent)
+        try await store.patchTask(id, ["bucket": "urgent"])   // same value
+        let corrections = try await store.auditHistory().first?.corrections ?? []
+        XCTAssertTrue(corrections.isEmpty)
+    }
+
+    func testUnclearingScheduleLogsCorrection() async throws {
+        let store = try makeStore()
+        let id = try await fileAuditedTask(store)             // starts at 540
+        try await store.patchTask(id, ["scheduled_start": nil])
+        let corrections = try await store.auditHistory().first?.corrections ?? []
+        XCTAssertEqual(corrections.map(\.field), ["scheduledStart"])
+        XCTAssertEqual(corrections[0].old, "540")
+        XCTAssertEqual(corrections[0].new, "")               // cleared
+    }
+
+    func testUnauditedTaskPatchLogsNothing() async throws {
+        let store = try makeStore()
+        let t = try await store.createTask(day: "2026-07-18", bucket: .urgent, title: "Manual")
+        try await store.patchTask(t.id, ["bucket": "extra"])  // no auditRecordId -> no crash
+        let history = try await store.auditHistory()
+        XCTAssertTrue(history.isEmpty)
+    }
 }

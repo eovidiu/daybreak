@@ -107,6 +107,9 @@ protocol PlannerApi {
 
     // Today's digest, computed over all local data.
     func digest(today: String) async throws -> Digest
+
+    // Immutable audit trail of classifications and their corrections.
+    func auditHistory() async throws -> [AuditEntry]
 }
 
 enum Day {
