@@ -8,12 +8,15 @@ Referenced in CLAUDE.md; load at session start.
   local-first (SwiftData, no account) and imports the AI features from secondBrainApp;
   web stays cloud-backed. Device↔web sync is deferred and tracked as F009 (needs-spec,
   do NOT implement). F004–F008 specify the 5 AI recommendations.
-- Last completed: **F004 — AI quick-capture** (NL → bucketed, scheduled task). Two-tier
-  `CaptureClassifier`: RuleBased (deterministic) + FoundationModels (iOS 26+), unified by
-  `CaptureEngine` with validated fallback. Capture bar in `PlannerView`. Passing; full
-  iOS suite green (6 UI + unit); Store 98.88% / PlannerView 99.52%.
-- Next up: **F005 — Bouncer** (confidence-gated auto-file + review queue). Writes one
-  AuditRecord per classification; >=threshold → TaskEntity(autoFiled), else → ReviewItem.
+- Last completed: **F005 — Bouncer** (confidence-gated auto-file + review queue).
+  `LocalStore.fileCapture` writes one AuditRecord per capture, then auto-files a task
+  (>= threshold) or queues a ReviewItem. `Bouncer.autoFiles` + `CaptureThreshold`
+  (UserDefaults, clamped 0.3–0.9, default 0.6). Review UI ("Needs a look" + ReviewSheet)
+  and a Settings threshold slider. Passing; full iOS suite green (8 UI + unit).
+- Before F005: **F004 — AI quick-capture** — two-tier `CaptureClassifier` (RuleBased +
+  FoundationModels iOS 26+) unified by `CaptureEngine`; capture bar in `PlannerView`.
+- Next up: **F006 — Daily digest** (pure `DigestService.digest(tasks:events:today:)`:
+  top-3 incomplete + one stuck + one small win). Deterministic; unit-tested.
 
 ## Cross-Cutting Concerns
 - Dual-stack:
@@ -46,6 +49,10 @@ Referenced in CLAUDE.md; load at session start.
 - **Isolate non-deterministic I/O for coverage**: pull the model→domain normalization into
   a pure function (`CaptureGuess.asClassification()`) so every branch is unit-tested;
   only the `session.respond(...)` call itself stays uncovered.
+- **Bouncer (F005)**: capture is one transactional `LocalStore.fileCapture` that writes an
+  AuditRecord then returns `.filed(task)` or `.queued(review)`; `PlannerStore` reacts to the
+  case. Threshold is injected into `PlannerStore` (not read from `.standard` directly) so
+  the gate is testable and deterministic.
 
 ### Gotchas
 - **SwiftData: three crash traps hit building F003's LocalStore** — (1) `#Predicate` with a
@@ -86,6 +93,12 @@ Referenced in CLAUDE.md; load at session start.
   counts as separate 0%-covered regions even when structurally unreachable (e.g.
   `scores[$0] ?? 0` where `scores` is always fully populated). These are why the classifier
   files sit at 90–94% despite 100% function-level coverage. Don't add fake tests to chase them.
+- **UserDefaults.standard leaks across tests on the simulator** — it's process-wide AND
+  persists between runs. A settings UI test that saved threshold 0.9 later broke unit
+  capture tests that assumed the 0.6 default (0.7/0.8 captures queued instead of auto-filing).
+  Fix: inject `UserDefaults` into `PlannerStore` and give each capture-flow test a fresh
+  suite; UI tests clear the key via the `UITEST_RESET` launch arg. Don't read global
+  mutable state in a way tests can't control.
 - **Keyboard avoidance can hide a field under the inline nav bar (XCUITest)**: with a
   keyboard still up from a prior `TextField`, SwiftUI pushes the next field up; if it lands
   under the translucent nav bar, `isHittable` is true but a tap hits the bar and never

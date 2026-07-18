@@ -2,7 +2,7 @@
   "project": "daybreak",
   "created": "2026-07-17T14:47:47Z",
   "total_features": 9,
-  "passing": 4,
+  "passing": 5,
   "features": [
     {
       "id": "F001",
@@ -129,7 +129,7 @@
       "id": "F005",
       "description": "Confidence-gated auto-filing (Bouncer) + review queue: threshold default 0.6 (0.3-0.9, Settings/UserDefaults). Every classification writes one AuditRecord at classification time. confidence>=threshold: create TaskEntity (autoFiled=true) with auditRecordId set. confidence<threshold: create ReviewItem (auditRecordId set), NO task. Review UI: Accept creates the task from suggested (possibly edited) values; Dismiss discards; un-actioned ReviewItems persist. Unit-tested with a stub classifier emitting known confidences. Coverage >=95%.",
       "priority": 3,
-      "status": "pending",
+      "status": "passing",
       "scope": [
         "ios/Daybreak/",
         "ios/DaybreakTests/"
@@ -138,12 +138,17 @@
         "F004"
       ],
       "assigned_to": null,
-      "test_file": "ios/DaybreakTests/",
-      "coverage": null,
+      "test_file": "ios/DaybreakTests/BouncerTests.swift, ios/DaybreakTests/LocalStoreTests.swift, ios/DaybreakTests/StoreTests.swift, ios/DaybreakUITests/DaybreakUITests.swift",
+      "coverage": "Bouncer 100% / Api 100% / LocalStore 97.6% / Store 98.6% / PlannerView 99.6% / EditSheets 96.3%",
       "notes": null,
       "correction_cycles": 0,
       "scope_expansions": [],
-      "approaches_tried": [],
+      "approaches_tried": [
+        "One transactional LocalStore.fileCapture per capture: writes an AuditRecord, then either auto-files a TaskEntity (autoFiled, auditRecordId) or queues a ReviewItem \u2014 returns .filed/.queued so the UI knows which happened.",
+        "Pure Bouncer.autoFiles gate + CaptureThreshold (UserDefaults, clamped 0.3-0.9, default 0.6) unit-tested in isolation.",
+        "Added tier to Classification so the AuditRecord records which classifier fired.",
+        "Injected UserDefaults into PlannerStore so capture-flow tests are hermetic (the shared simulator threshold domain leaked between the settings UI test and the unit capture tests otherwise)."
+      ],
       "failure_reason": null,
       "discovered_via": null,
       "spec": {
