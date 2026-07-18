@@ -113,6 +113,65 @@ final class LocalStore: PlannerApi {
         if let e = try eventEntity(id) { context.delete(e); try context.save() }
     }
 
+    // MARK: capture review queue
+
+    // Writes one AuditRecord per capture; auto-files a task when confidence clears the
+    // threshold, otherwise queues a ReviewItem and creates no task.
+    func fileCapture(text: String, classification c: Classification,
+                     threshold: Double) async throws -> CaptureResult {
+        let now = Date()
+        let capture = CaptureItem(text: text, source: .typed, now: now)
+        context.insert(capture)
+        let autoFiled = Bouncer.autoFiles(confidence: c.confidence, threshold: threshold)
+        let audit = AuditRecord(captureId: capture.id, rawInput: text, chosenBucket: c.bucket,
+                                confidence: c.confidence, autoFiled: autoFiled,
+                                modelTier: c.tier, now: now)
+        context.insert(audit)
+
+        if autoFiled {
+            let task = TaskEntity(day: c.day, bucket: c.bucket, title: c.cleanedTitle,
+                                  scheduledStart: c.startMin, scheduledMinutes: c.durationMin,
+                                  position: try nextPosition(day: c.day),
+                                  auditRecordId: audit.id, now: now)
+            capture.statusRaw = CaptureStatus.filed.rawValue
+            context.insert(task)
+            try context.save()
+            return .filed(task.asTask())
+        }
+
+        let review = ReviewItem(captureId: capture.id, cleanedTitle: c.cleanedTitle,
+                                suggestedBucket: c.bucket, suggestedDay: c.day,
+                                suggestedStart: c.startMin, suggestedMinutes: c.durationMin,
+                                confidence: c.confidence, auditRecordId: audit.id, now: now)
+        capture.statusRaw = CaptureStatus.classified.rawValue
+        context.insert(review)
+        try context.save()
+        return .queued(review.asReview())
+    }
+
+    func reviews() async throws -> [Review] {
+        try context.fetch(FetchDescriptor<ReviewItem>())
+            .sorted { $0.createdAt < $1.createdAt }
+            .map { $0.asReview() }
+    }
+
+    func acceptReview(_ id: String, bucket: Bucket, day: String, title: String,
+                      start: Int?, minutes: Int?) async throws -> PlannerTask {
+        guard let review = try reviewEntity(id) else { throw ApiError(message: "not found") }
+        let task = TaskEntity(day: day, bucket: bucket, title: title,
+                              scheduledStart: start, scheduledMinutes: minutes,
+                              position: try nextPosition(day: day),
+                              auditRecordId: review.auditRecordId, now: Date())
+        context.insert(task)
+        context.delete(review)
+        try context.save()
+        return task.asTask()
+    }
+
+    func dismissReview(_ id: String) async throws {
+        if let review = try reviewEntity(id) { context.delete(review); try context.save() }
+    }
+
     // MARK: helpers
 
     // SwiftData #Predicate with captured variables crashes on this runtime, so
@@ -127,6 +186,10 @@ final class LocalStore: PlannerApi {
 
     private func eventEntity(_ id: String) throws -> EventEntity? {
         try context.fetch(FetchDescriptor<EventEntity>()).first { $0.id == id }
+    }
+
+    private func reviewEntity(_ id: String) throws -> ReviewItem? {
+        try context.fetch(FetchDescriptor<ReviewItem>()).first { $0.id == id }
     }
 
     private func nextPosition(day: String) throws -> Int {

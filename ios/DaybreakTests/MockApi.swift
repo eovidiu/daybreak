@@ -64,6 +64,47 @@ final class MockApi: PlannerApi, @unchecked Sendable {
 
     func patchEvent(_ id: String, _ patch: [String: Any?]) async throws { try guardOk() }
     func deleteEvent(_ id: String) async throws { try guardOk() }
+
+    // MARK: capture review queue
+
+    var reviewQueue: [Review] = []
+
+    private func insertTask(day: String, bucket: Bucket, title: String,
+                            start: Int?, minutes: Int?) -> PlannerTask {
+        let t = PlannerTask(id: UUID().uuidString, day: day, bucket: bucket, title: title,
+                            note: "", done: false, scheduledStart: start,
+                            scheduledMinutes: minutes, position: tasks.count)
+        tasks.append(t)
+        return t
+    }
+
+    func fileCapture(text: String, classification c: Classification,
+                     threshold: Double) async throws -> CaptureResult {
+        try guardOk()
+        if Bouncer.autoFiles(confidence: c.confidence, threshold: threshold) {
+            return .filed(insertTask(day: c.day, bucket: c.bucket, title: c.cleanedTitle,
+                                     start: c.startMin, minutes: c.durationMin))
+        }
+        let r = Review(id: UUID().uuidString, title: c.cleanedTitle, bucket: c.bucket,
+                       day: c.day, start: c.startMin, minutes: c.durationMin,
+                       confidence: c.confidence)
+        reviewQueue.append(r)
+        return .queued(r)
+    }
+
+    func reviews() async throws -> [Review] { try guardOk(); return reviewQueue }
+
+    func acceptReview(_ id: String, bucket: Bucket, day: String, title: String,
+                      start: Int?, minutes: Int?) async throws -> PlannerTask {
+        try guardOk()
+        reviewQueue.removeAll { $0.id == id }
+        return insertTask(day: day, bucket: bucket, title: title, start: start, minutes: minutes)
+    }
+
+    func dismissReview(_ id: String) async throws {
+        try guardOk()
+        reviewQueue.removeAll { $0.id == id }
+    }
 }
 
 // Emits a fixed classification so capture-flow tests are deterministic.

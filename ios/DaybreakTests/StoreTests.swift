@@ -133,9 +133,15 @@ final class StoreTests: XCTestCase {
 
     // MARK: capture (F004)
 
+    // Fresh UserDefaults per store so the auto-file threshold is the default 0.6 and
+    // never leaks between tests (or from the shared simulator domain).
     private func captureStore(_ c: Classification) -> (PlannerStore, MockApi) {
         let api = MockApi()
-        return (PlannerStore(api: api, classifier: StubClassifier(result: c)), api)
+        let name = "store-test-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return (PlannerStore(api: api, classifier: StubClassifier(result: c),
+                             defaults: defaults), api)
     }
 
     func testCaptureCreatesBucketedScheduledTask() async {
@@ -189,5 +195,39 @@ final class StoreTests: XCTestCase {
         api.failNext = true
         await store.capture("something")
         XCTAssertNotNil(store.errorMessage)
+    }
+
+    func testCaptureLowConfidenceQueuesReview() async {
+        let (store, _) = captureStore(
+            Classification(bucket: .extra, day: Day.today(), startMin: nil,
+                           durationMin: nil, cleanedTitle: "Maybe read", confidence: 0.4))
+        await store.bootstrap()
+        await store.capture("maybe read something")
+        XCTAssertTrue(store.data.tasks.isEmpty)            // not auto-filed
+        XCTAssertEqual(store.reviews.map(\.title), ["Maybe read"])
+    }
+
+    func testAcceptReviewFromStoreCreatesTask() async {
+        let (store, _) = captureStore(
+            Classification(bucket: .extra, day: Day.today(), startMin: nil,
+                           durationMin: nil, cleanedTitle: "Read", confidence: 0.4))
+        await store.bootstrap()
+        await store.capture("read")
+        let review = store.reviews[0]
+        await store.acceptReview(review, bucket: .progress, day: Day.today(),
+                                 title: "Read the book", start: 600, minutes: 30)
+        XCTAssertTrue(store.reviews.isEmpty)
+        XCTAssertEqual(store.data.tasks.first?.title, "Read the book")
+    }
+
+    func testDismissReviewFromStore() async {
+        let (store, _) = captureStore(
+            Classification(bucket: .extra, day: Day.today(), startMin: nil,
+                           durationMin: nil, cleanedTitle: "Later", confidence: 0.4))
+        await store.bootstrap()
+        await store.capture("later maybe")
+        await store.dismissReview(store.reviews[0])
+        XCTAssertTrue(store.reviews.isEmpty)
+        await settle()
     }
 }

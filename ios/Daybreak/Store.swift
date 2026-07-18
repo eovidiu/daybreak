@@ -4,10 +4,13 @@ import SwiftUI
 final class PlannerStore: ObservableObject {
     let api: PlannerApi
     let classifier: CaptureClassifier
+    private let defaults: UserDefaults
 
-    init(api: PlannerApi, classifier: CaptureClassifier = Capture.makeClassifier()) {
+    init(api: PlannerApi, classifier: CaptureClassifier = Capture.makeClassifier(),
+         defaults: UserDefaults = .standard) {
         self.api = api
         self.classifier = classifier
+        self.defaults = defaults
     }
 
     @Published var user: User?
@@ -15,6 +18,7 @@ final class PlannerStore: ObservableObject {
     @Published var day: String = Day.today()
     @Published var data = DayData(tasks: [], events: [])
     @Published var earlier: [EarlierTask] = []
+    @Published var reviews: [Review] = []
     @Published var errorMessage: String?
     @Published var dayLoadStamp = 0
 
@@ -31,6 +35,7 @@ final class PlannerStore: ObservableObject {
         user = nil
         cache = [:]
         data = DayData(tasks: [], events: [])
+        reviews = []
     }
 
     func select(day newDay: String) {
@@ -45,9 +50,11 @@ final class PlannerStore: ObservableObject {
             // ModelContext, which traps on overlapping access.
             let dayData = try await api.day(day)
             let earlierTasks = try await api.earlier(before: Day.today())
+            let queued = try await api.reviews()
             cache[day] = dayData
             data = dayData
             earlier = earlierTasks
+            reviews = queued
             dayLoadStamp += 1
         } catch {
             report(error)
@@ -76,24 +83,42 @@ final class PlannerStore: ObservableObject {
         }
     }
 
-    // Natural-language capture: classify the line, then create a task in the chosen
-    // bucket on the parsed day, scheduled if the classifier found a time. (Confidence
-    // gating lands in F005; here every capture becomes a task.)
+    // Natural-language capture: classify the line, then let the Bouncer decide. A
+    // confident classification auto-files a task; a low-confidence one is queued for
+    // review. Threshold is the user's setting.
     func capture(_ text: String) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         let c = await classifier.classify(trimmed, today: Day.today())
         do {
-            let task = try await api.createTask(day: c.day, bucket: c.bucket,
-                                                title: c.cleanedTitle)
-            if let start = c.startMin {
-                try await api.patchTask(task.id, ["scheduled_start": start,
-                                                  "scheduled_minutes": c.durationMin])
+            let result = try await api.fileCapture(text: trimmed, classification: c,
+                                                   threshold: CaptureThreshold.load(defaults))
+            switch result {
+            case .filed: await load()
+            case .queued(let review): reviews.append(review)
             }
+        } catch {
+            report(error)
+        }
+    }
+
+    // Accept a queued review with (possibly edited) values: creates the task, drops the
+    // review.
+    func acceptReview(_ review: Review, bucket: Bucket, day: String, title: String,
+                      start: Int?, minutes: Int?) async {
+        do {
+            _ = try await api.acceptReview(review.id, bucket: bucket, day: day, title: title,
+                                           start: start, minutes: minutes)
+            reviews.removeAll { $0.id == review.id }
             await load()
         } catch {
             report(error)
         }
+    }
+
+    func dismissReview(_ review: Review) async {
+        reviews.removeAll { $0.id == review.id }
+        do { try await api.dismissReview(review.id) } catch { report(error) }
     }
 
     func toggle(_ task: PlannerTask) {

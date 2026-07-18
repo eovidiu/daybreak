@@ -103,4 +103,89 @@ final class LocalStoreTests: XCTestCase {
         let b = try await store.createTask(day: "2026-07-18", bucket: .urgent, title: "B")
         XCTAssertLessThan(a.position, b.position)
     }
+
+    // MARK: capture review queue (F005)
+
+    private func classification(_ confidence: Double, bucket: Bucket = .urgent,
+                                day: String = "2026-07-18", start: Int? = 540,
+                                minutes: Int? = 30, title: String = "Call bank",
+                                tier: ModelTier = .ruleBased) -> Classification {
+        Classification(bucket: bucket, day: day, startMin: start, durationMin: minutes,
+                       cleanedTitle: title, confidence: confidence, tier: tier)
+    }
+
+    func testHighConfidenceAutoFilesTaskWithAudit() async throws {
+        let store = try makeStore()
+        let result = try await store.fileCapture(
+            text: "call the bank at 9", classification: classification(0.9, tier: .foundationModels),
+            threshold: 0.6)
+        guard case .filed(let task) = result else { return XCTFail("expected filed") }
+        XCTAssertEqual(task.title, "Call bank")
+        XCTAssertEqual(task.scheduledStart, 540)
+
+        let day = try await store.day("2026-07-18")
+        XCTAssertEqual(day.tasks.count, 1)                 // task exists
+        let queued = try await store.reviews()
+        XCTAssertTrue(queued.isEmpty)                      // nothing queued
+
+        let entity = try store.taskEntity(task.id)
+        XCTAssertNotNil(entity?.auditRecordId)             // task links its audit
+    }
+
+    func testLowConfidenceQueuesReviewAndFilesNoTask() async throws {
+        let store = try makeStore()
+        let result = try await store.fileCapture(
+            text: "maybe reorganize photos", classification: classification(0.4, bucket: .extra,
+                                                                            title: "Reorganize photos"),
+            threshold: 0.6)
+        guard case .queued(let review) = result else { return XCTFail("expected queued") }
+        XCTAssertEqual(review.title, "Reorganize photos")
+        XCTAssertEqual(review.confidence, 0.4, accuracy: 0.0001)
+
+        let day = try await store.day("2026-07-18")
+        XCTAssertTrue(day.tasks.isEmpty)                   // no task
+        let queued = try await store.reviews()
+        XCTAssertEqual(queued.map(\.id), [review.id])
+    }
+
+    func testAcceptReviewCreatesTaskFromEditedValues() async throws {
+        let store = try makeStore()
+        guard case .queued(let review) = try await store.fileCapture(
+            text: "read design book", classification: classification(0.4, bucket: .extra,
+                                                                      start: nil, minutes: nil,
+                                                                      title: "Read design book"),
+            threshold: 0.6) else { return XCTFail("expected queued") }
+
+        let task = try await store.acceptReview(review.id, bucket: .progress, day: "2026-07-19",
+                                                title: "Read the design book", start: 600, minutes: 45)
+        XCTAssertEqual(task.bucket, .progress)             // edited bucket honored
+        XCTAssertEqual(task.title, "Read the design book")
+        XCTAssertEqual(task.scheduledStart, 600)
+        let queued = try await store.reviews()
+        XCTAssertTrue(queued.isEmpty)                      // review consumed
+        let day = try await store.day("2026-07-19")
+        XCTAssertEqual(day.tasks.count, 1)
+    }
+
+    func testDismissReviewDropsItWithoutTask() async throws {
+        let store = try makeStore()
+        guard case .queued(let review) = try await store.fileCapture(
+            text: "someday sort inbox", classification: classification(0.35, bucket: .extra),
+            threshold: 0.6) else { return XCTFail("expected queued") }
+        try await store.dismissReview(review.id)
+        let queued = try await store.reviews()
+        XCTAssertTrue(queued.isEmpty)
+        let day = try await store.day("2026-07-18")
+        XCTAssertTrue(day.tasks.isEmpty)
+    }
+
+    func testReviewsSortedByCreation() async throws {
+        let store = try makeStore()
+        _ = try await store.fileCapture(text: "a", classification: classification(0.4, title: "First"),
+                                        threshold: 0.6)
+        _ = try await store.fileCapture(text: "b", classification: classification(0.4, title: "Second"),
+                                        threshold: 0.6)
+        let queued = try await store.reviews()
+        XCTAssertEqual(queued.map(\.title), ["First", "Second"])
+    }
 }

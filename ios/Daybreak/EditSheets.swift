@@ -172,6 +172,107 @@ struct NewEventSheet: View {
     }
 }
 
+// Edits a queued low-confidence capture, then accepts it (creates the task) or dismisses
+// it. Prefilled from the classifier's suggestion.
+struct ReviewSheet: View {
+    @EnvironmentObject var store: PlannerStore
+    @Environment(\.dismiss) private var dismiss
+    let review: Review
+
+    @State private var title = ""
+    @State private var bucket = Bucket.extra
+    @State private var scheduled = false
+    @State private var start = 9 * 60
+    @State private var minutes = 60
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Title", text: $title)
+                        .accessibilityIdentifier("editTitle")
+                        .foregroundStyle(Theme.ink)
+                    Picker("Bucket", selection: $bucket) {
+                        ForEach(Bucket.allCases) { Text($0.title).tag($0) }
+                    }
+                } header: {
+                    Text("Suggested · \(Int(review.confidence * 100))% sure")
+                }
+                Section("Time block") {
+                    Toggle("Scheduled", isOn: $scheduled)
+                        .accessibilityIdentifier("scheduledToggle")
+                    if scheduled { TimeControls(start: $start, minutes: $minutes) }
+                }
+                Button("Dismiss", role: .destructive) {
+                    Task { await store.dismissReview(review) }
+                    dismiss()
+                }
+                .accessibilityIdentifier("dismissReview")
+            }
+            .navigationTitle("Review capture")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Accept") {
+                        Task {
+                            await store.acceptReview(review, bucket: bucket, day: review.day,
+                                                     title: title,
+                                                     start: scheduled ? start : nil,
+                                                     minutes: scheduled ? minutes : nil)
+                        }
+                        dismiss()
+                    }
+                    .accessibilityIdentifier("acceptReview")
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .onAppear {
+            title = review.title
+            bucket = review.bucket
+            scheduled = review.start != nil
+            start = review.start ?? 9 * 60
+            minutes = review.minutes ?? 60
+        }
+    }
+}
+
+// Adjusts the Bouncer's auto-file threshold.
+struct SettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var threshold = CaptureThreshold.load()
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        Text("Auto-file at")
+                        Spacer()
+                        Text("\(Int(threshold * 100))%").foregroundStyle(.secondary)
+                            .accessibilityIdentifier("thresholdValue")
+                    }
+                    Slider(value: $threshold, in: CaptureThreshold.range, step: 0.05)
+                        .accessibilityIdentifier("thresholdSlider")
+                        .onChange(of: threshold) { _, value in CaptureThreshold.save(value) }
+                } footer: {
+                    Text("Captures this confident file straight into a bucket. Less confident "
+                         + "ones wait in the review queue.")
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }.accessibilityIdentifier("closeSettings")
+                }
+            }
+        }
+    }
+}
+
 struct TimeControls: View {
     @Binding var start: Int
     @Binding var minutes: Int

@@ -94,6 +94,14 @@ protocol PlannerApi {
                      startMin: Int, durationMin: Int) async throws -> PlannerEvent
     func patchEvent(_ id: String, _ patch: [String: Any?]) async throws
     func deleteEvent(_ id: String) async throws
+
+    // Capture review queue (local-first AI features).
+    func fileCapture(text: String, classification: Classification,
+                     threshold: Double) async throws -> CaptureResult
+    func reviews() async throws -> [Review]
+    func acceptReview(_ id: String, bucket: Bucket, day: String, title: String,
+                      start: Int?, minutes: Int?) async throws -> PlannerTask
+    func dismissReview(_ id: String) async throws
 }
 
 enum Day {

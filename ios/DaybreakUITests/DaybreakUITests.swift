@@ -231,6 +231,40 @@ final class DaybreakUITests: XCTestCase {
                       "captured line becomes a task")
     }
 
+    // Bouncer (F005): a low-confidence capture (no keywords → 0.40, under the 0.6 default)
+    // is held in the review queue rather than auto-filed, and Accept turns it into a task.
+    func testLowConfidenceCaptureQueuesForReviewThenAccept() throws {
+        openPlanner()
+        let field = app.textFields["captureField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 8))
+        field.tap()
+        field.typeText("buy some milk")   // no keyword → 0.40 confidence → review
+        app.buttons["captureSubmit"].tap()
+
+        // It waits in the review queue, not in a bucket.
+        let review = app.buttons["review-Buy some milk"]
+        XCTAssertTrue(review.waitForExistence(timeout: 8), "low-confidence capture queues for review")
+        XCTAssertFalse(elem("task-Buy some milk").exists, "not auto-filed as a task")
+
+        review.tap()
+        let accept = app.buttons["acceptReview"]
+        XCTAssertTrue(accept.waitForExistence(timeout: 5))
+        accept.tap()
+        XCTAssertTrue(elem("task-Buy some milk").waitForExistence(timeout: 8),
+                      "accepted review becomes a task")
+    }
+
+    // Settings exposes the auto-file threshold slider.
+    func testSettingsThresholdSliderOpens() throws {
+        openPlanner()
+        app.buttons["menuButton"].tap()
+        app.buttons["Settings"].tap()
+        let slider = app.sliders["thresholdSlider"]
+        XCTAssertTrue(slider.waitForExistence(timeout: 5), "threshold slider appears")
+        slider.adjust(toNormalizedSliderPosition: 0.9)
+        app.buttons["closeSettings"].tap()
+    }
+
     // Daybreak commits to a light "paper" look; it must render light even when the
     // system is in Dark Mode, so field text never goes white-on-white.
     //

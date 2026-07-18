@@ -33,7 +33,8 @@ extension CaptureGuess {
             startMin: startMin >= 0 ? startMin : nil,
             durationMin: durationMin > 0 ? durationMin : nil,
             cleanedTitle: cleanedTitle,
-            confidence: confidence)
+            confidence: confidence,
+            tier: .foundationModels)
     }
 }
 

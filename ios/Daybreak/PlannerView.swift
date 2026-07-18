@@ -4,7 +4,9 @@ struct PlannerView: View {
     @EnvironmentObject var store: PlannerStore
     @State private var editingTask: PlannerTask?
     @State private var editingEvent: PlannerEvent?
+    @State private var reviewing: Review?
     @State private var addingEvent = false
+    @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
@@ -12,6 +14,9 @@ struct PlannerView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     WeekStrip()
                     CaptureBar()
+                    if !store.reviews.isEmpty {
+                        ReviewSection { reviewing = $0 }
+                    }
                     ForEach(Bucket.allCases) { bucket in
                         BucketSection(bucket: bucket) { editingTask = $0 }
                     }
@@ -38,6 +43,7 @@ struct PlannerView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button("Add event") { addingEvent = true }
+                        Button("Settings") { showingSettings = true }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                             .accessibilityIdentifier("menuButton")
@@ -47,7 +53,9 @@ struct PlannerView: View {
             .refreshable { await store.load() }
             .sheet(item: $editingTask) { TaskEditSheet(task: $0) }
             .sheet(item: $editingEvent) { EventEditSheet(event: $0) }
+            .sheet(item: $reviewing) { ReviewSheet(review: $0) }
             .sheet(isPresented: $addingEvent) { NewEventSheet() }
+            .sheet(isPresented: $showingSettings) { SettingsSheet() }
         }
     }
 }
@@ -231,6 +239,39 @@ struct TaskRow: View {
         .onTapGesture { onEdit(task) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-\(task.title)")
+    }
+}
+
+struct ReviewSection: View {
+    @EnvironmentObject var store: PlannerStore
+    let onReview: (Review) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Needs a look").font(.serif(16, .semibold)).foregroundStyle(Theme.inkSoft)
+            Text("Captures I wasn’t sure how to file.")
+                .font(.caption).foregroundStyle(Theme.muted)
+            ForEach(store.reviews) { review in
+                HStack(spacing: 10) {
+                    Circle().fill(Theme.accent(review.bucket)).frame(width: 8, height: 8)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(review.title).font(.system(size: 14)).foregroundStyle(Theme.ink)
+                        Text("\(review.bucket.title) · \(Int(review.confidence * 100))% sure")
+                            .font(.caption2).foregroundStyle(Theme.muted)
+                    }
+                    Spacer()
+                    Button("Review") { onReview(review) }
+                        .font(.caption.weight(.semibold)).tint(Theme.ink)
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("review-\(review.title)")
+                }
+            }
+        }
+        .padding(16)
+        .background(Theme.paperDim, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.hairline))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reviewSection")
     }
 }
 

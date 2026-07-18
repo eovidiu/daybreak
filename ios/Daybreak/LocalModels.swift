@@ -137,6 +137,11 @@ final class ReviewItem {
     }
 
     var suggestedBucket: Bucket { Bucket(rawValue: suggestedBucketRaw) ?? .extra }
+
+    func asReview() -> Review {
+        Review(id: id, title: cleanedTitle, bucket: suggestedBucket, day: suggestedDay,
+               start: suggestedStart, minutes: suggestedMinutes, confidence: confidence)
+    }
 }
 
 @Model

@@ -1,6 +1,7 @@
 import Foundation
 
-// Result of classifying a captured line into a plan item.
+// Result of classifying a captured line into a plan item. `tier` records which
+// classifier produced it, for the audit trail.
 struct Classification: Equatable {
     var bucket: Bucket
     var day: String
@@ -8,6 +9,7 @@ struct Classification: Equatable {
     var durationMin: Int?
     var cleanedTitle: String
     var confidence: Double
+    var tier: ModelTier = .ruleBased
 }
 
 protocol CaptureClassifier {

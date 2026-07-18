@@ -12,6 +12,7 @@ struct DaybreakApp: App {
             let local = LocalStore(container: container)
             if ProcessInfo.processInfo.arguments.contains("UITEST_RESET") {
                 try? local.deleteAll()
+                UserDefaults.standard.removeObject(forKey: CaptureThreshold.key)
             }
             return PlannerStore(api: local)
         }
