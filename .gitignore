@@ -7,6 +7,7 @@ docs/
 ios/build/
 ios/build-sim/
 ios/build-app/
+ios/build-device/
 ios/*.xcodeproj
 xcuserdata/
 test-results/
