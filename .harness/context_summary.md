@@ -113,6 +113,37 @@ Referenced in CLAUDE.md; load at session start.
   ScrollView has `.scrollDismissesKeyboard(.immediately)`, and the UI test's `addTask`
   helper swipes to resign the keyboard before the next add.
 
+## iOS device build & install (runbook)
+
+Physical devices (paired) and their identifiers:
+- **iPhone XR** (iOS 18, rule-based capture): `861A7C3D-66C5-5EB7-9392-BF043BB84EBD`
+- **iPhone 17 Pro** (iOS 26.5, FoundationModels tier runs if Apple Intelligence is on):
+  `F980D29A-FB93-5D50-8226-E43938A24F6C`
+
+Signing: `project.yml` stays on **manual** signing (reproducible CI). For device builds,
+pass **automatic** signing as CLI overrides so Xcode auto-provisions the App Group + the
+two extension bundle IDs (`com.eovidiu.daybreak{,.widget,.share}`).
+
+**Step 1 — build (Ovidiu runs it; headless can't sign, see gotcha below).** Prefix with
+`!` so it runs in the GUI session; no keychain prompt anymore (key was set to "Always Allow"):
+```
+cd /Users/fameftimie/work/daybreak/ios && xcodebuild build -project Daybreak.xcodeproj -scheme Daybreak -destination 'platform=iOS,id=861A7C3D-66C5-5EB7-9392-BF043BB84EBD' -derivedDataPath build-device -allowProvisioningUpdates CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=HV325Z3W39 PROVISIONING_PROFILE_SPECIFIER=""
+```
+**Step 2 — install (Claude can run this; install needs no keychain).** The one signed
+`.app` installs on any device already in the auto-provisioned profile:
+```
+xcrun devicectl device install app --device <DEVICE_ID> /Users/fameftimie/work/daybreak/ios/build-device/Build/Products/Debug-iphoneos/Daybreak.app
+```
+
+**Gotcha — headless codesign is impossible from Claude's Bash on this machine.** It fails
+with `errSecInternalComponent`; `security show-keychain-info` reports "User interaction is
+not allowed" — the automation context isn't in the GUI login session, so it can't unlock
+the login keychain to reach the signing key. Neither `Always Allow` nor
+`set-key-partition-list` fixes this (they govern non-interactive *key* access, but the
+*keychain* can't be unlocked here). Only a GUI-session build (the `!` step) works; passing
+the login password to unlock is out of bounds. So: Ovidiu builds via `!`, Claude installs.
+Dev-signed builds expire (~7 days on a free tier); rebuild+reinstall to refresh.
+
 ## Meta-Session 2026-07-17
 - Scope vs planned: F001 stayed within its 5-file scope; no expansions. Theme.swift was
   in scope but needed no edit (Theme.ink already existed) — a harmless scope superset.
