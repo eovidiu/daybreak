@@ -46,4 +46,15 @@ enum Capture {
         #endif
         return RuleBasedClassifier()
     }
+
+    // Whether the on-device Foundation Models tier (Apple Intelligence) is available. True
+    // only on iOS 26+ with Apple Intelligence enabled and the model ready; otherwise capture
+    // uses the built-in rules. Accurate on real hardware (the Simulator reports available
+    // even when the model catalog is empty).
+    static var foundationModelsActive: Bool {
+        #if canImport(FoundationModels)
+        if #available(iOS 26, *) { return FoundationModelClassifier.isAvailable }
+        #endif
+        return false
+    }
 }

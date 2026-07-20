@@ -261,6 +261,7 @@ final class DaybreakUITests: XCTestCase {
         app.buttons["Settings"].tap()
         let slider = app.sliders["thresholdSlider"]
         XCTAssertTrue(slider.waitForExistence(timeout: 5), "threshold slider appears")
+        XCTAssertTrue(elem("aiStatus").exists, "on-device AI status is shown")
         slider.adjust(toNormalizedSliderPosition: 0.9)
         app.buttons["closeSettings"].tap()
     }

@@ -306,6 +306,20 @@ struct SettingsSheet: View {
                     Text("Captures this confident file straight into a bucket. Less confident "
                          + "ones wait in the review queue.")
                 }
+                Section {
+                    HStack {
+                        Text("On-device AI")
+                        Spacer()
+                        Text(Capture.foundationModelsActive ? "Active" : "Built-in rules")
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("aiStatus")
+                    }
+                } footer: {
+                    Text(Capture.foundationModelsActive
+                         ? "Apple Intelligence is on — captures are sorted by the on-device model."
+                         : "Captures are sorted by built-in rules. Turn on Apple Intelligence "
+                           + "(iPhone 15 Pro or newer) for smarter sorting.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

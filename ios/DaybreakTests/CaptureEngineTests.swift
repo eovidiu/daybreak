@@ -53,6 +53,12 @@ final class CaptureEngineTests: XCTestCase {
         XCTAssertTrue(r.isInRange)
     }
 
+    func testFoundationModelsStatusReadable() {
+        // On the iOS 26 simulator SystemLanguageModel reports available (even though the
+        // model catalog is empty); on a device it reflects real Apple Intelligence state.
+        XCTAssertTrue(Capture.foundationModelsActive)
+    }
+
     #if canImport(FoundationModels)
     // Pins every branch of the model-output normalization without invoking the model.
     @available(iOS 26, *)
